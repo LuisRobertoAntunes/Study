@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  web:
+    image: study-web
+    build: .
+    container_name: study-app
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NEXTAUTH_SECRET=QUALQUER_TEXTO_AQUI
