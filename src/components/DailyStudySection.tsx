@@ -66,20 +66,33 @@ const DailyStudySection = ({ dailySubjectStudyTime, subjectColors, className }) 
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: {
-        display: false, // Desabilitar a legenda padrão do Chart.js
-      },
+      legend: { display: false },
       tooltip: {
+        displayColors: true,
+        bodyFont: { size: 10 }, // fonte menor
+        titleFont: { size: 0 }, // remove título
         callbacks: {
-          label: function(context) {
+          title: () => '',
+          label: function (context) {
             const label = context.label || '';
             const value = context.parsed;
-            return `${label}: ${formatMinutesToHoursMinutes(value)}`;
+
+            // Adiciona quebra de linha após o nome da matéria
+            const parts = label.split(' - '); // divide por hífen ou outro separador
+            let formattedLabel = parts[0]; // primeira linha
+            if (parts.length > 1) {
+              formattedLabel += '\n' + parts.slice(1).join(' - '); // segunda linha
+            }
+            return `${formattedLabel}: ${formatMinutesToHoursMinutes(value)}`;
           }
-        }
-      }
+        },
+        // Força o tooltip a respeitar limites do gráfico
+        maxWidth: 150, // largura máxima do tooltip em pixels
+      },
     },
   };
+
+
 
   return (
     <div className="bg-white shadow-lg rounded-lg p-6 dark:bg-gray-800 transition-colors duration-300 h-full flex flex-col">

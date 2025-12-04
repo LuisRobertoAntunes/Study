@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { FaPlus, FaFileAlt } from 'react-icons/fa';
+import React, { useState, useEffect } from 'react';
+import { FaPlus } from 'react-icons/fa';
 import PlanSelector from '../../components/PlanSelector';
 import AddSimuladoModal from '../../components/AddSimuladoModal';
 import SimuladoCard from '../../components/SimuladoCard';
@@ -12,41 +12,75 @@ import ConfirmationModal from '../../components/ConfirmationModal';
 
 export default function SimuladosPage() {
   const { simuladoRecords, deleteSimuladoRecord } = useData();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSimulado, setEditingSimulado] = useState<SimuladoRecord | null>(null);
-  const [chartType, setChartType] = useState('desempenho'); // 'desempenho' ou 'pontuacao'
+  const [chartType, setChartType] = useState<'desempenho' | 'pontuacao'>('desempenho');
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [simuladoToDelete, setSimuladoToDelete] = useState<SimuladoRecord | null>(null);
 
-  const realizadosCount = simuladoRecords.length;
-  const latestSimulado = simuladoRecords.length > 0 ? simuladoRecords[simuladoRecords.length - 1] : null;
+  // controla tema para forçar re-render do gráfico ao mudar dark/light
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
-  const acertos = latestSimulado ? latestSimulado.subjects.reduce((sum, s) => sum + s.correct, 0) : 0;
-  const totalQuestionsLastSimulado = latestSimulado ? latestSimulado.subjects.reduce((sum, s) => sum + s.totalQuestions, 0) : 0;
-  const erros = latestSimulado ? latestSimulado.subjects.reduce((sum, s) => sum + s.incorrect, 0) : 0;
+  useEffect(() => {
+    // observa mudanças na classe do documento (Tailwind troca 'dark' na raiz)
+    const observer = new MutationObserver(() => {
+      const isDark = document.documentElement.classList.contains('dark');
+      setIsDarkMode(isDark);
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+
+    // estado inicial
+    setIsDarkMode(document.documentElement.classList.contains('dark'));
+
+    return () => observer.disconnect();
+  }, []);
+
+  const realizadosCount = simuladoRecords.length;
+  const latestSimulado =
+    simuladoRecords.length > 0 ? simuladoRecords[simuladoRecords.length - 1] : null;
+
+  const acertos = latestSimulado
+    ? latestSimulado.subjects.reduce((sum, s) => sum + (Number(s.correct) || 0), 0)
+    : 0;
+
+  const totalQuestionsLastSimulado = latestSimulado
+    ? latestSimulado.subjects.reduce((sum, s) => sum + (Number(s.totalQuestions) || 0), 0)
+    : 0;
+
+  const erros = latestSimulado
+    ? latestSimulado.subjects.reduce((sum, s) => sum + (Number(s.incorrect) || 0), 0)
+    : 0;
+
   const brancos = latestSimulado ? totalQuestionsLastSimulado - acertos - erros : 0;
-  const percentual = totalQuestionsLastSimulado > 0 ? Math.round((acertos / totalQuestionsLastSimulado) * 100) : 0;
+  const percentual =
+    totalQuestionsLastSimulado > 0 ? Math.round((acertos / totalQuestionsLastSimulado) * 100) : 0;
 
   const formatDateForChartLabel = (dateString: string): string => {
-    const date = new Date(dateString + 'T00:00:00'); // Adiciona T00:00:00 para garantir interpretação UTC
+    const date = new Date(dateString + 'T00:00:00');
     return date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
-  // Processar dados para os gráficos
-  const chartLabels = simuladoRecords.map(s => formatDateForChartLabel(s.date));
-  const chartPerformanceData = simuladoRecords.map(s => {
-    const totalQ = s.subjects.reduce((sum, sub) => sum + sub.totalQuestions, 0);
-    const correctQ = s.subjects.reduce((sum, sub) => sum + sub.correct, 0);
+  // Processar dados para os gráficos (com proteção contra strings/undefined)
+  const chartLabels = simuladoRecords.map((s) => formatDateForChartLabel(s.date));
+
+  const chartPerformanceData = simuladoRecords.map((s) => {
+    const totalQ = s.subjects.reduce((sum, sub) => sum + (Number(sub.totalQuestions) || 0), 0);
+    const correctQ = s.subjects.reduce((sum, sub) => sum + (Number(sub.correct) || 0), 0);
     return totalQ > 0 ? Math.round((correctQ / totalQ) * 100) : 0;
   });
 
-  const chartScoreData = simuladoRecords.map(s => {
+  const chartScoreData = simuladoRecords.map((s) => {
     let totalScore = 0;
-    s.subjects.forEach(sub => {
+    s.subjects.forEach((sub) => {
       if (s.style === 'Certo/Errado') {
-        totalScore += (sub.correct - sub.incorrect);
+        totalScore += (Number(sub.correct) || 0) - (Number(sub.incorrect) || 0);
       } else {
-        totalScore += (sub.correct * sub.weight);
+        totalScore += (Number(sub.correct) || 0) * (Number(sub.weight) || 0);
       }
     });
     return totalScore;
@@ -83,17 +117,16 @@ export default function SimuladosPage() {
           <header className="flex justify-between items-center mb-8">
             <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 dark:text-gray-100">Simulados</h1>
             <div className="flex items-center space-x-2 sm:space-x-4">
-              <button 
+              <button
                 onClick={handleOpenModal}
                 className="relative flex items-center px-4 py-2 bg-gold-500 text-white rounded-full shadow-lg hover:bg-gold-600 transition-all duration-300 text-base font-semibold overflow-hidden group"
               >
-                <span className="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-gold-300 to-transparent opacity-80 transform -skew-x-30 transition-all duration-700 ease-in-out group-hover:left-[100%]"></span>
+                <span className="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-gold-300 to-transparent opacity-80 transform -skew-x-30 transition-all duration-700 ease-in-out group-hover:left-[100%]" />
                 <span className="relative flex items-center">
                   <FaPlus className="mr-2" />
                   Novo Simulado
                 </span>
               </button>
-              
             </div>
           </header>
 
@@ -125,7 +158,7 @@ export default function SimuladosPage() {
                         <p className="text-sm text-gray-500 dark:text-gray-400">Erros</p>
                         <p className="text-xl font-bold text-red-500">{erros}</p>
                       </div>
-                      <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-full flex items-center justify-center w-20 h-20 mx-auto">
+                      <div className="bg-gray-100 dark:bg-gray-700 p-2 rounded-full flex items-center justify-center w-14 h-14 mx-auto">
                         <p className="text-2xl font-bold text-gray-800 dark:text-gray-100">{percentual}%</p>
                       </div>
                     </div>
@@ -142,24 +175,27 @@ export default function SimuladosPage() {
                     <div className="absolute top-4 right-4 flex flex-col space-y-2 z-10">
                       <button
                         onClick={() => setChartType('desempenho')}
-                        className={`relative overflow-hidden group px-4 py-2 rounded-lg text-sm font-medium ${chartType === 'desempenho' ? 'bg-gold-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500'} transition-colors`}>
-                        <span className={`absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-gold-300 to-transparent opacity-80 transform -skew-x-30 transition-all duration-700 ease-in-out ${chartType === 'desempenho' ? 'group-hover:left-[100%]' : ''}`}></span>
+                        className={`relative overflow-hidden group px-2 py-2 rounded-lg text-xs font-medium ${chartType === 'desempenho' ? 'bg-gold-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500'} transition-colors`}
+                      >
+                        <span className={`absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-gold-300 to-transparent opacity-80 transform -skew-x-30 transition-all duration-700 ease-in-out ${chartType === 'desempenho' ? 'group-hover:left-[100%]' : ''}`} />
                         <span className="relative">Desempenho</span>
                       </button>
                       <button
                         onClick={() => setChartType('pontuacao')}
-                        className={`relative overflow-hidden group px-4 py-2 rounded-lg text-sm font-medium ${chartType === 'pontuacao' ? 'bg-yellow-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500'} transition-colors`}>
-                        <span className={`absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-yellow-300 to-transparent opacity-80 transform -skew-x-30 transition-all duration-700 ease-in-out ${chartType === 'pontuacao' ? 'group-hover:left-[100%]' : ''}`}></span>
+                        className={`relative overflow-hidden group px-2 py-2 rounded-lg text-xs font-medium ${chartType === 'pontuacao' ? 'bg-gold-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500'} transition-colors`}
+                      >
+                        <span className={`absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-gold-300 to-transparent opacity-80 transform -skew-x-30 transition-all duration-700 ease-in-out ${chartType === 'pontuacao' ? 'group-hover:left-[100%]' : ''}`} />
                         <span className="relative">Pontuação</span>
                       </button>
                     </div>
                   )}
                   {simuladoRecords.length > 0 ? (
-                    <SimuladoLineChart 
-                      labels={chartLabels} 
-                      performanceData={chartPerformanceData} 
-                      scoreData={chartScoreData} 
-                      chartType={chartType} 
+                    <SimuladoLineChart
+                      key={`${chartType}-${isDarkMode}`}
+                      labels={chartLabels}
+                      performanceData={chartPerformanceData}
+                      scoreData={chartScoreData}
+                      chartType={chartType}
                     />
                   ) : (
                     <p>Registre simulados para ver seu desempenho aqui.</p>
@@ -168,15 +204,15 @@ export default function SimuladosPage() {
               </div>
             </div>
 
-            {/* Mensagem Central */}
+            {/* Mensagem Central / Lista */}
             {realizadosCount > 0 ? (
               <div className="lg:col-span-1 flex flex-col gap-4">
                 {simuladoRecords.map(simulado => (
-                  <SimuladoCard 
-                    key={simulado.id} 
-                    simulado={simulado} 
-                    onEdit={handleEditSimulado} 
-                    onDelete={handleDeleteSimulado} 
+                  <SimuladoCard
+                    key={simulado.id}
+                    simulado={simulado}
+                    onEdit={handleEditSimulado}
+                    onDelete={handleDeleteSimulado}
                   />
                 ))}
               </div>
@@ -184,7 +220,7 @@ export default function SimuladosPage() {
               <div className="text-center bg-white dark:bg-gray-800 p-8 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 lg:col-span-2">
                 <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-100 mb-4">Você ainda não registrou nenhum simulado.</h3>
                 <p className="text-gray-500 dark:text-gray-300 mb-6">Que tal começar agora para acompanhar seu progresso?</p>
-                <button 
+                <button
                   onClick={handleOpenModal}
                   className="bg-gold-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-gold-600 transition-transform transform hover:scale-105 duration-300 flex items-center mx-auto"
                 >
@@ -196,11 +232,13 @@ export default function SimuladosPage() {
           </main>
         </div>
       </div>
-      <AddSimuladoModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+
+      <AddSimuladoModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
         initialSimulado={editingSimulado}
       />
+
       <ConfirmationModal
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}

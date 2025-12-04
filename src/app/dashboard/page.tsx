@@ -151,18 +151,18 @@ const WeeklyStudyGoals = ({ currentHours, goalHours, currentQuestions, goalQuest
 
   // New function for hours bar color
   const getBarColorForHours = (percentage) => {
-    if (percentage >= 100) return 'bg-gold-500';
-    if (percentage > 80) return 'bg-gold-400';
-    if (percentage > 40) return 'bg-orange-400';
-    return 'bg-red-500';
+    if (percentage >= 100) return 'bg-blue-800'; // Meta Atingida
+    if (percentage > 80) return 'bg-blue-600';  // Quase lá
+    if (percentage > 40) return 'bg-blue-400';  // Progresso
+    return 'bg-blue-300';
   };
 
   // New function for questions bar color
   const getBarColorForQuestions = (percentage) => {
-    if (percentage >= 100) return 'bg-yellow-500';
-    if (percentage > 80) return 'bg-yellow-400';
-    if (percentage > 40) return 'bg-orange-300';
-    return 'bg-red-500';
+    if (percentage >= 100) return 'bg-blue-800';
+    if (percentage > 80) return 'bg-blue-600';
+    if (percentage > 40) return 'bg-blue-400';
+    return 'bg-blue-300';
   };
 
   const hoursPercentage = goalHours > 0 ? (currentHours / goalHours) * 100 : 0;
