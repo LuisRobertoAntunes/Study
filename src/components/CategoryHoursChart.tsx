@@ -35,7 +35,11 @@ const curvedPointLabelsPlugin = {
     ctx.save();
     const pointLabelFont = { size: 8, weight: 'bold' as const, family: 'Arial' };
     ctx.font = `${pointLabelFont.weight} ${pointLabelFont.size}px ${pointLabelFont.family}`;
-    ctx.fillStyle = '#636c79ff'; // Cor para ambos os modos (cinza médio-escuro)
+
+    // Detecta o modo dark/light dinamicamente
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    ctx.fillStyle = isDarkMode ? '#ffffff' : '#4B5563'; // Branco para Dark Mode, Cinza Escuro para Light Mode
+
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
@@ -105,6 +109,21 @@ const EXAMPLE_DATA = {
 
 const CategoryHoursChart: React.FC<CategoryHoursChartProps> = ({ categoryStudyHours }) => {
 
+  // Estado para detectar dark mode
+  const [isDarkMode, setIsDarkMode] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkTheme = () => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    };
+    checkTheme();
+    // Adiciona um observador para mudanças na classe 'dark' no elemento <html>
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
+  const chartTextColor = isDarkMode ? '#ffffff' : '#4B5563'; // Branco para Dark Mode, Cinza Escuro para Light Mode
 
   const hasRealData = categoryStudyHours && Object.values(categoryStudyHours).some(value => value > 0);
   const dataToShow = hasRealData ? categoryStudyHours : EXAMPLE_DATA;
@@ -135,8 +154,8 @@ const CategoryHoursChart: React.FC<CategoryHoursChartProps> = ({ categoryStudyHo
     maintainAspectRatio: false,
     scales: {
       r: {
-        angleLines: { display: true, color: '#D1D5DB', lineWidth: 1 },
-        grid: { circular: true, color: '#D1D5DB' },
+        angleLines: { display: true, color: chartTextColor, lineWidth: 1 },
+        grid: { circular: true, color: chartTextColor },
         suggestedMin: 0,
         ticks: {
           display: false,
@@ -151,7 +170,7 @@ const CategoryHoursChart: React.FC<CategoryHoursChartProps> = ({ categoryStudyHo
         display: false,
         text: hasRealData ? 'Distribuição de Horas por Categoria' : 'Exemplo de Gráfico de Categorias',
         font: { size: 18, weight: 'bold' as const },
-        color: '#4B5563',
+        color: chartTextColor,
         padding: {
           top: 10,
           bottom: 20,
@@ -161,8 +180,8 @@ const CategoryHoursChart: React.FC<CategoryHoursChartProps> = ({ categoryStudyHo
         display: true,
         position: 'bottom' as const,
         labels: {
-          font: { size: 14 },
-          color: '#4B5563'
+          font: { size: 16 },
+          color: chartTextColor
         }
       },
       tooltip: {
@@ -177,7 +196,7 @@ const CategoryHoursChart: React.FC<CategoryHoursChartProps> = ({ categoryStudyHo
       datalabels: {
         display: true,
         formatter: (value: number) => formatTimeLabel(value),
-        color: '#4B5563',
+        color: chartTextColor,
         backgroundColor: (context: any) => {
           const isDarkMode = document.documentElement.classList.contains('dark');
           return isDarkMode ? 'rgba(0, 0, 0, 0.5)' : 'rgba(255, 255, 255, 0.7)';
@@ -185,8 +204,8 @@ const CategoryHoursChart: React.FC<CategoryHoursChartProps> = ({ categoryStudyHo
         borderRadius: 4,
         padding: 4,
         font: {
-          weight: 'bold' as const,
-          size: 12,
+          weight: 'light' as const,
+          size: 14,
         },
       },
     },

@@ -32,6 +32,21 @@ export default function Estatisticas() {
   const [allTopicsExpanded, setAllTopicsExpanded] = React.useState(true);
   const [subjectSortOrder, setSubjectSortOrder] = React.useState('desc'); // 'desc', 'asc', 'alpha'
 
+  const [isDarkMode, setIsDarkMode] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkTheme = () => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    };
+    checkTheme();
+    // Adiciona um observador para mudanças na classe 'dark' no elemento <html>
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
+  const chartTextColor = isDarkMode ? '#ffffff' : '#4B5563'; // Branco para Dark Mode, Cinza Escuro para Light Mode
+
   const sortedSubjectHours = React.useMemo(() => {
     const entries = Object.entries(stats.subjectStudyHours ?? {});
     if (subjectSortOrder === 'desc') {
@@ -92,7 +107,7 @@ export default function Estatisticas() {
       legend: {
         position: 'top' as const,
         labels: {
-          color: '#4B5563', // Cor para ambos os modos (cinza médio-escuro)
+          color: chartTextColor, // Cor para ambos os modos (cinza médio-escuro)
         }
       },
       title: {
@@ -129,10 +144,10 @@ export default function Estatisticas() {
         title: {
           display: true,
           text: 'Data',
-          color: '#4B5563',
+          color: chartTextColor,
         },
         ticks: {
-          color: '#634b4bff',
+          color: chartTextColor,
         },
         grid: {
           color: '#D1D5DB',
@@ -142,11 +157,11 @@ export default function Estatisticas() {
         title: {
           display: true,
           text: 'Quantidade de Questões',
-          color: '#4B5563',
+          color: chartTextColor,
         },
         beginAtZero: true,
         ticks: {
-          color: '#4B5563',
+          color: chartTextColor,
         },
         grid: {
           color: '#D1D5DB',
@@ -365,14 +380,14 @@ export default function Estatisticas() {
                     scales: {
                       x: {
                         title: { display: false },
-                        ticks: { font: { size: 20 }, color: '#4B5563' },
-                        grid: { color: '#D1D5DB' }
+                        ticks: { font: { size: 20 }, color: chartTextColor },
+                        grid: { color: '#dbd1d1ff' }
                       },
                       y: {
                         title: { display: false, text: 'Horas' },
                         min: 0,
                         max: 8,
-                        ticks: { stepSize: 2, color: '#4B5563' },
+                        ticks: { stepSize: 2, color: chartTextColor },
                         grid: { color: '#D1D5DB' }
                       }
                     },
@@ -435,12 +450,12 @@ export default function Estatisticas() {
                         x: {
                           title: { display: false },
                           min: 0,
-                          ticks: { stepSize: 4, callback: (value: number) => `${value}h`, color: '#4B5563' },
+                          ticks: { stepSize: 4, callback: (value: number) => `${value}h`, color: chartTextColor },
                           grid: { color: '#D1D5DB' }
                         },
                         y: {
                           title: { display: false },
-                          ticks: { font: { size: 12 }, color: '#ffffffff' },
+                          ticks: { font: { size: 12 }, color: chartTextColor },
                           grid: { color: '#D1D5DB' }
                         }
                       },
@@ -505,28 +520,28 @@ export default function Estatisticas() {
                       scales: {
                         x: {
                           title: { display: false },
-                          ticks: { font: { size: 12 }, color: '#4B5563' },
-                          grid: { color: '#D1D5DB' }
+                          ticks: { font: { size: 12 }, color: chartTextColor },
+                          grid: { color: '#dbd1d1ff' }
                         },
                         y: {
                           title: { display: false },
                           min: 0,
                           max: 100,
-                          ticks: { stepSize: 20, callback: (value: number) => `${value}%`, color: '#4B5563' },
-                          grid: { color: '#D1D5DB' }
+                          ticks: { stepSize: 20, callback: (value: number) => `${value}%`, color: chartTextColor },
+                          grid: { color: '#dbd1d1ff' }
                         }
                       },
                       plugins: {
-                        legend: { display: true, position: 'bottom' as const, labels: { boxWidth: 10, color: '#4B5563' } },
+                        legend: { display: true, position: 'bottom' as const, labels: { boxWidth: 10, color: chartTextColor } },
                         tooltip: {
                           enabled: true,
-                          titleColor: '#4B5563',
-                          bodyColor: '#4B5563',
+                          titleColor: '#fdfdfdff',
+                          bodyColor: '#ffffffff',
                         },
                         datalabels: {
                           anchor: 'end',
                           align: 'top',
-                          color: '#1e40af',
+                          color: chartTextColor,
                           font: { size: 12 },
                           formatter: (value: number) => value > 0 ? `${value.toFixed(1)}%` : ''
                         }
