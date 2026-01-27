@@ -46,6 +46,4 @@ data/
 /.cache/
 /dist/
 
-# Puppeteer / Chromium (não versionar)
-puppeteer_data/
-
+*.dll
