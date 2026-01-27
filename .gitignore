@@ -46,4 +46,8 @@ data/
 /.cache/
 /dist/
 
-*.dll
+puppeteer_data/
+**/chrome.exe
+**/chrome.dll
+**/chrome-headless-shell.exe
+
