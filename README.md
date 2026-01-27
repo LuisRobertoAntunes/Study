@@ -1,13 +1,14 @@
-# Ouroboros
+# Study
 
-[![GitHub license](https://img.shields.io/github/license/grebsu/Ouroboros.svg)](https://github.com/grebsu/Ouroboros/blob/master/LICENSE)
-[![GitHub package.json version](https://img.shields.io/github/package-json/version/grebsu/Ouroboros)](https://github.com/grebsu/Ouroboros/blob/master/package.json)
-<!-- Adicione mais badges aqui, ex: status de build -->
+[![GitHub license](https://img.shields.io/github/license/LuisRobertoAntunes/Study.svg)](https://github.com/LuisRobertoAntunes/Study/blob/master/LICENSE)
+[![GitHub package.json version](https://img.shields.io/github/package-json/version/LuisRobertoAntunes/Study)](https://github.com/LuisRobertoAntunes/Study/blob/master/package.json)
 
-O Ouroboros é uma aplicação completa para planejamento de estudos, projetada para ajudar estudantes a organizar seus horários, acompanhar o progresso e gerenciar revisões de forma eficaz.
+O **Study** é uma aplicação completa para planejamento de estudos, projetada para ajudar estudantes a organizar seus horários, acompanhar o progresso e gerenciar revisões de forma eficaz.
+
+> [!IMPORTANT]
+> Este projeto é um **fork** do projeto original [Ouroboros](https://github.com/grebsu/Ouroboros), desenvolvido por [Grebsu](https://github.com/grebsu). O **Study** mantém a essência do projeto original sob a licença MIT, incorporando modificações, melhorias de interface e novas funcionalidades desenvolvidas por [Luis Roberto](https://github.com/LuisRobertoAntunes).
 
 ## 📖 Sumário
-- [🎥 Demonstração em Vídeo](#-demonstração-em-vídeo)
 - [✨ Funcionalidades](#-funcionalidades)
 - [🚀 Tecnologias Utilizadas](#-tecnologias-utilizadas)
 - [🏁 Como Começar](#-como-começar)
@@ -16,40 +17,9 @@ O Ouroboros é uma aplicação completa para planejamento de estudos, projetada 
   - [Executando a Aplicação](#executando-a-aplicação)
     - [Modo de Desenvolvimento](#modo-de-desenvolvimento)
     - [Modo de Produção com Docker](#modo-de-produção-com-docker)
-    - [Executando com Imagem Pré-construída do Docker Hub](#executando-com-imagem-pré-construída-do-docker-hub)
     - [Construindo e Executando a Versão Desktop (Electron)](#construindo-e-executando-a-versão-desktop-electron)
 - [🤝 Contribuição](#-contribuição)
 - [📄 Licença](#-licença)
-- [📞 Contato](#-contato)
-
-## 🎥 Demonstração em Vídeo
-
-Assista a uma breve introdução da aplicação e suas funcionalidades no vídeo abaixo:
-
-**[➡️ Assistir à introdução no YouTube](https://youtu.be/nKAGOVKF7A8?si=D0Oa3fFRNpJWIz3W)**
-
-Confira também o tutorial completo para aprender a usar todas as ferramentas:
-
-**[➡️ Tutorial Completo no YouTube](https://youtu.be/vAGiZICjqSM)**
-
-## 📥 Download
-
-A versão mais recente da aplicação para desktop (Windows e Linux) pode ser baixada aqui:
-
-**[➡️ Baixar Ouroboros v1.1.3](https://github.com/grebsu/Ouroboros/releases/tag/v1.1.3)**
-
-## 💖 Apoie o Projeto
-
-Se o Ouroboros te ajudou nos seus estudos, considere apoiar o projeto com uma doação! Sua contribuição ajuda a manter o desenvolvimento contínuo, a implementação de novas funcionalidades e a correção de bugs. O projeto visa ajudar estudantes hipossuficientes a ter acesso a uma ferramenta de estudos poderosa, visando democratizar o estudo. Qualquer valor é muito bem-vindo e faz uma grande diferença.
-
-Você pode doar escaneando o QR Code abaixo com seu aplicativo de banco:
-
-<p align="center">
-  <img src="public/qrcode-pix.png" alt="QR Code PIX para doação" width="200">
-</p>
-
-Muito obrigado pelo seu apoio!
-
 
 ## ✨ Funcionalidades
 
@@ -88,11 +58,11 @@ Siga estas instruções para obter uma cópia do projeto e executá-lo em sua m�
 
 1. Clone o repositório:
    ```bash
-   git clone https://github.com/grebsu/Ouroboros.git
+   git clone https://github.com/LuisRobertoAntunes/Study.git
    ```
 2. Navegue até o diretório do projeto:
    ```bash
-   cd Ouroboros
+   cd Study
    ```
 3. Instale as dependências:
    ```bash
@@ -124,20 +94,6 @@ Para executar a aplicação em um contêiner Docker, garantindo um ambiente de p
     ```
     A aplicação estará disponível em [http://localhost:3000](http://localhost:3000).
 
-#### Executando com Imagem Pré-construída do Docker Hub
-
-Para executar a aplicação usando a imagem pré-construída do Docker Hub:
-
-1.  **Puxe a imagem Docker:**
-    ```bash
-    docker pull ouroboros73/ouroboros:latest
-    ```
-2.  **Execute o contêiner Docker:**
-    Certifique-se de configurar suas variáveis de ambiente (por exemplo, `DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`) ao executar o contêiner. Você pode passá-las usando a flag `-e`.
-    ```bash
-    docker run -p 3000:3000 -e DATABASE_URL="your_database_url" -e NEXTAUTH_SECRET="your_nextauth_secret" -e NEXTAUTH_URL="http://localhost:3000" ouroboros73/ouroboros:latest
-    ```
-
 #### Construindo e Executando a Versão Desktop (Electron)
 
 Para construir e executar a aplicação como um aplicativo de desktop (Linux, Windows) usando Electron, siga os passos abaixo. Certifique-se de que todas as dependências gerais do projeto já foram instaladas com `npm install`.
@@ -168,6 +124,4 @@ Contribuições são muito bem-vindas! Se você tiver ideias, sugestões ou quis
 
 Este projeto está licenciado sob a Licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
 
-## 📞 Contato
 
-Para dúvidas ou suporte, entre em contato com [Grebsu](mailto:glebson.olvr@gmail.com).
