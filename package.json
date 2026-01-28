@@ -17,7 +17,8 @@
     "setup": "node setup-env.js",
     "dev:electron": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 electron electron/main.js\"",
     "build:electron": "rimraf .next dist puppeteer_data && npx puppeteer browsers install chrome && next build && electron-builder",
-    "build:electron:win": "rimraf .next dist puppeteer_data && cross-env PUPPETEER_PLATFORM=win64 npx puppeteer browsers install chrome && next build && electron-builder --win"
+    "build:electron:win": "rimraf .next dist puppeteer_data && cross-env PUPPETEER_PLATFORM=win64 npx puppeteer browsers install chrome && next build && electron-builder --win",
+    "build:electron:linux": "rimraf .next dist puppeteer_data && cross-env PUPPETEER_PLATFORM=linux npx puppeteer browsers install chrome && next build && electron-builder --linux"
   },
   "build": {
     "appId": "com.study.app",
