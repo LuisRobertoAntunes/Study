@@ -203,7 +203,7 @@ const SortableItem = ({
           </span>
         </div>
         <div className={`w-full bg-gray-200 dark:bg-gray-600 rounded-full ${hoveredSession === session.id ? 'h-3' : 'h-1'} transition-all duration-700 ease`}>
-          <div className="bg-gradient-to-r from-gold-400 to-orange-500 h-full rounded-full" style={{ width: `${progressPercentage}%` }}></div>
+          <div className="bg-gradient-to-r from-blue-400 to-blue-800 h-full rounded-full" style={{ width: `${progressPercentage}%` }}></div>
         </div>
         <div className={`flex space-x-4 mt-2 w-full ${isEditMode ? 'justify-end' : 'justify-start'}`}>
           {isEditMode ? (
@@ -542,9 +542,9 @@ export default function Planejamento() {
           <div className="flex items-center space-x-4">
             <button
               onClick={handleGetRecommendation}
-              className="relative flex items-center px-4 py-2 bg-gold-600 text-white rounded-lg shadow-lg hover:bg-gold-700 transition-all duration-300 text-base font-semibold overflow-hidden group"
+              className="relative flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg shadow-lg hover:bg-blue-700 transition-all duration-300 text-base font-semibold overflow-hidden group"
             >
-              <span className="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-gold-300 to-transparent opacity-80 transform -skew-x-30 transition-all duration-700 ease-in-out group-hover:left-[100%]"></span>
+              <span className="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-blue-300 to-transparent opacity-80 transform -skew-x-30 transition-all duration-700 ease-in-out group-hover:left-[100%]"></span>
               <span className="relative flex items-center">
                 <FaHandSparkles className="mr-2" />
                 Iniciar Próximo Estudo
@@ -552,7 +552,7 @@ export default function Planejamento() {
             </button>
             <button
               onClick={() => setIsEditMode(prev => !prev)}
-              className={`relative flex items-center px-4 py-2 text-white rounded-lg shadow-lg transition-all duration-300 text-base font-semibold overflow-hidden group ${isEditMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gold-500 hover:bg-gold-600'}`}>
+              className={`relative flex items-center px-4 py-2 text-white rounded-lg shadow-lg transition-all duration-300 text-base font-semibold overflow-hidden group ${isEditMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'}`}>
               <span className="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-white to-transparent opacity-30 transform -skew-x-30 transition-all duration-700 ease-in-out group-hover:left-[100%]"></span>
               <span className="relative flex items-center">
                 {isEditMode ? 'Concluir Edição' : 'Editar'}
