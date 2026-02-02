@@ -172,38 +172,38 @@ export default function Revisao() {
                 Adicionar Estudo
               </span>
             </button>
-            
+
           </div>
         </header>
         <hr className="mt-2 mb-6 border-gray-300 dark:border-gray-700" />
-        </div>
+      </div>
 
       <div className="flex ml-6 mb-[-1px] z-10 relative">
-          <div
-            className={`px-4 py-2 mx-0.5 rounded-t-lg cursor-pointer font-semibold text-sm transition-all duration-300 border border-gray-300 dark:border-gray-600 border-b-0 ${activeTab === 'scheduled' ? 'bg-gold-500 text-white shadow-md' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
-            onClick={() => setActiveTab('scheduled')}
-          >
-            PROGRAMADAS
-          </div>
-          <div
-            className={`px-4 py-2 mx-0.5 rounded-t-lg cursor-pointer font-semibold text-sm transition-all duration-300 border border-gray-300 dark:border-gray-600 border-b-0 ${activeTab === 'overdue' ? 'bg-gold-500 text-white shadow-md' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
-            onClick={() => setActiveTab('overdue')}
-          >
-            ATRASADAS
-          </div>
-          <div
-            className={`px-4 py-2 mx-0.5 rounded-t-lg cursor-pointer font-semibold text-sm transition-all duration-300 border border-gray-300 dark:border-gray-600 border-b-0 ${activeTab === 'ignored' ? 'bg-gold-500 text-white shadow-md' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
-            onClick={() => setActiveTab('ignored')}
-          >
-            IGNORADAS
-          </div>
-          <div
-            className={`px-4 py-2 mx-0.5 rounded-t-lg cursor-pointer font-semibold text-sm transition-all duration-300 border border-gray-300 dark:border-gray-600 border-b-0 ${activeTab === 'completed' ? 'bg-gold-500 text-white shadow-md' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
-            onClick={() => setActiveTab('completed')}
-          >
-            CONCLUÍDAS
-          </div>
+        <div
+          className={`px-4 py-2 mx-0.5 rounded-t-lg cursor-pointer font-semibold text-sm transition-all duration-300 border border-gray-300 dark:border-gray-600 border-b-0 ${activeTab === 'scheduled' ? 'bg-gold-500 text-white shadow-md' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
+          onClick={() => setActiveTab('scheduled')}
+        >
+          PROGRAMADAS
         </div>
+        <div
+          className={`px-4 py-2 mx-0.5 rounded-t-lg cursor-pointer font-semibold text-sm transition-all duration-300 border border-gray-300 dark:border-gray-600 border-b-0 ${activeTab === 'overdue' ? 'bg-gold-500 text-white shadow-md' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
+          onClick={() => setActiveTab('overdue')}
+        >
+          ATRASADAS
+        </div>
+        <div
+          className={`px-4 py-2 mx-0.5 rounded-t-lg cursor-pointer font-semibold text-sm transition-all duration-300 border border-gray-300 dark:border-gray-600 border-b-0 ${activeTab === 'ignored' ? 'bg-gold-500 text-white shadow-md' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
+          onClick={() => setActiveTab('ignored')}
+        >
+          IGNORADAS
+        </div>
+        <div
+          className={`px-4 py-2 mx-0.5 rounded-t-lg cursor-pointer font-semibold text-sm transition-all duration-300 border border-gray-300 dark:border-gray-600 border-b-0 ${activeTab === 'completed' ? 'bg-gold-500 text-white shadow-md' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}
+          onClick={() => setActiveTab('completed')}
+        >
+          CONCLUÍDAS
+        </div>
+      </div>
 
       <div className="revisoes-container container mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
         <div className="space-y-6">
@@ -383,7 +383,7 @@ export default function Revisao() {
                           </div>
                         </div>
                       </div>
-                      
+
                     </React.Fragment>
                   );
                 })}
@@ -392,7 +392,7 @@ export default function Revisao() {
           )}
         </div>
 
-        
+
       </div>
 
       <StudyRegisterModal
