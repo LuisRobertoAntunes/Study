@@ -61,7 +61,7 @@ export default function Revisao() {
     if (completingReviewId) {
       const recordToUpdate = reviewRecords.find(r => r.id === completingReviewId);
       if (recordToUpdate) {
-        updateReviewRecord({ ...recordToUpdate, completedDate: new Date().toISOString().split('T')[0], ignored: false });
+        updateReviewRecord({ ...recordToUpdate, completedDate: new Date().toLocaleDateString('en-CA'), ignored: false });
       }
     }
 
@@ -120,8 +120,10 @@ export default function Revisao() {
       const [bYear, bMonth, bDay] = b.scheduledDate.split('-').map(Number);
       const dateB = new Date(Date.UTC(bYear, bMonth - 1, bDay));
 
-      if (activeTab === 'scheduled' || 'overdue') {
+      if (activeTab === 'scheduled' || activeTab === 'overdue') {
         return dateA.getTime() - dateB.getTime();
+      } else if (activeTab === 'completed' || activeTab === 'ignored') {
+        return dateB.getTime() - dateA.getTime();
       }
       return 0;
     });
@@ -220,7 +222,8 @@ export default function Revisao() {
                 <h2 className="flex items-center text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4 pr-2">
                   {(() => {
                     const daysText = getDaysRemainingText(dateKey);
-                    if (daysText === 'HOJE' || daysText === 'AMANHÃ' || daysText.includes('DIAS ATRASADOS')) {
+                    // Only show "HOJE", "AMANHÃ" or "ATRASADOS" if we are NOT in completed or ignored tabs
+                    if (activeTab !== 'completed' && activeTab !== 'ignored' && (daysText === 'HOJE' || daysText === 'AMANHÃ' || daysText.includes('DIAS ATRASADOS'))) {
                       return daysText;
                     }
                     const date = new Date(dateKey);
@@ -241,7 +244,6 @@ export default function Revisao() {
                       </div>
                     );
                   })()}
-                  <div className="flex-grow h-1 bg-gold-500 ml-4"></div>
                 </h2>
                 {recordsForDate.map((record) => {
                   const studyRecord = studyRecords.find(sr => sr.id === record.studyRecordId);
@@ -256,11 +258,13 @@ export default function Revisao() {
                     <React.Fragment key={record.id}>
                       <div className="flex items-start space-x-4">
                         {/* Coluna da Esquerda: Selo de Dias */}
-                        <div>
-                          <span className="bg-white dark:bg-gray-700 border border-gold-500 dark:border-gold-400 rounded-full px-3 py-1 text-base font-semibold text-gold-700 dark:text-gold-300 whitespace-nowrap">
-                            {diffDays === 0 ? 'HOJE' : `${diffDays} dia${diffDays !== 1 ? 's' : ''}`}
-                          </span>
-                        </div>
+                        {activeTab !== 'completed' && activeTab !== 'ignored' && (
+                          <div>
+                            <span className="bg-white dark:bg-gray-700 border border-gold-500 dark:border-gold-400 rounded-full px-3 py-1 text-base font-semibold text-gold-700 dark:text-gold-300 whitespace-nowrap">
+                              {diffDays === 0 ? 'HOJE' : `${diffDays} dia${diffDays !== 1 ? 's' : ''}`}
+                            </span>
+                          </div>
+                        )}
 
                         {/* Coluna da Direita: Conteúdo Principal */}
                         <div className="flex-1">
