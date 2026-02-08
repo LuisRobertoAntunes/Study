@@ -124,14 +124,14 @@ export async function getStudyCycleFromFile(planFileName: string): Promise<Study
     return JSON.parse(fileContent);
   } catch (error) {
     if (error instanceof Error && 'code' in error && error.code !== 'ENOENT') {
-       console.error(`Erro ao ler o arquivo do ciclo ${cycleFileName}:`, error);
+      console.error(`Erro ao ler o arquivo do ciclo ${cycleFileName}:`, error);
     }
     return null;
   }
 }
 
 export async function deleteStudyCycleFile(planFileName: string): Promise<{ success: boolean; error?: string }> {
-    if (!planFileName) {
+  if (!planFileName) {
     return { success: false, error: 'Nome do arquivo do plano não fornecido.' };
   }
   const cycleFileName = planFileName.replace('.json', '.cycle.json');
@@ -142,7 +142,7 @@ export async function deleteStudyCycleFile(planFileName: string): Promise<{ succ
     await fs.unlink(filePath);
     return { success: true };
   } catch (error) {
-     if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
       return { success: true };
     }
     console.error(`Erro ao deletar o arquivo do ciclo ${cycleFileName}:`, error);
@@ -336,6 +336,24 @@ export async function deleteStudyRecordAction(fileName: string, recordId: string
   }
 }
 
+export async function deleteReviewRecordAction(fileName: string, reviewId: string): Promise<void> {
+  try {
+    const dataDir = await getUserDataDirectory();
+    const filePath = path.join(dataDir, fileName);
+    let planData: PlanData | null = await getJsonContent(fileName);
+    if (planData && planData.reviewRecords) {
+      const initialLength = planData.reviewRecords.length;
+      planData.reviewRecords = planData.reviewRecords.filter(r => r.id !== reviewId);
+      if (planData.reviewRecords.length < initialLength) {
+        await fs.writeFile(filePath, JSON.stringify(planData, null, 2));
+      }
+    }
+  } catch (error) {
+    console.error('Error deleting review record:', error);
+    throw error;
+  }
+}
+
 export async function createPlanFile(formData: FormData): Promise<{ success: boolean; fileName?: string; error?: string }> {
   const planName = formData.get('name') as string;
   const observations = formData.get('observations') as string;
@@ -474,7 +492,7 @@ export async function deleteSimuladoRecordAction(fileName: string, recordId: str
 export async function exportFullBackupAction(): Promise<any> {
   const dataDir = await getUserDataDirectory();
   const allFiles = await fs.readdir(dataDir);
-  
+
   const allPlansData = [];
   const allCyclesData = [];
 
@@ -495,9 +513,9 @@ export async function exportFullBackupAction(): Promise<any> {
   return { plans: allPlansData, cycles: allCyclesData };
 }
 
-export async function restoreFullBackupAction(backupData: { 
+export async function restoreFullBackupAction(backupData: {
   plans: { fileName: string, content: any }[],
-  cycles?: { fileName: string, content: any }[] 
+  cycles?: { fileName: string, content: any }[]
 }): Promise<{ success: boolean; error?: string }> {
   const dataDir = await getUserDataDirectory();
   try {
@@ -592,14 +610,14 @@ export async function renameSubjectAction(
 
     // Update subject in records (using subjectId for matching, newSubjectName for display)
     if (planData.records) {
-      planData.records = planData.records.map(r => 
+      planData.records = planData.records.map(r =>
         r.subjectId === subjectId ? { ...r, subject: newSubjectName } : r
       );
     }
 
     // Update subject in reviewRecords (using subjectId for matching, newSubjectName for display)
     if (planData.reviewRecords) {
-      planData.reviewRecords = planData.reviewRecords.map(rr => 
+      planData.reviewRecords = planData.reviewRecords.map(rr =>
         rr.subjectId === subjectId ? { ...rr, subject: newSubjectName } : rr
       );
     }
@@ -608,7 +626,7 @@ export async function renameSubjectAction(
     if (planData.simuladoRecords) {
       planData.simuladoRecords = planData.simuladoRecords.map(sr => ({
         ...sr,
-        subjects: sr.subjects.map(ss => 
+        subjects: sr.subjects.map(ss =>
           ss.id === subjectId ? { ...ss, subjectName: newSubjectName } : ss
         ),
       }));
@@ -627,7 +645,7 @@ export async function renameSubjectAction(
       const cycleData: StudyCycleData = JSON.parse(cycleFileContent);
 
       if (cycleData.studyCycle) {
-        cycleData.studyCycle = cycleData.studyCycle.map((session: any) => 
+        cycleData.studyCycle = cycleData.studyCycle.map((session: any) =>
           session.subjectId === subjectId ? { ...session, subject: newSubjectName } : session
         );
       }
@@ -660,15 +678,15 @@ export async function addOrUpdateSubjectAction(
     const fileContent = await fs.readFile(filePath, 'utf-8');
     const planData: PlanData = JSON.parse(fileContent);
 
-    const existingSubjectIndex = subjectData.id 
-      ? planData.subjects.findIndex(s => s.id === subjectData.id) 
+    const existingSubjectIndex = subjectData.id
+      ? planData.subjects.findIndex(s => s.id === subjectData.id)
       : -1;
 
     if (existingSubjectIndex !== -1) {
       // Atualizar matéria existente
-      planData.subjects[existingSubjectIndex] = { 
-        ...planData.subjects[existingSubjectIndex], 
-        ...subjectData 
+      planData.subjects[existingSubjectIndex] = {
+        ...planData.subjects[existingSubjectIndex],
+        ...subjectData
       };
       await fs.writeFile(filePath, JSON.stringify(planData, null, 2), 'utf-8');
       return { success: true, subjectId: subjectData.id };
@@ -754,7 +772,7 @@ export async function migrateToSubjectIds(fileName: string): Promise<{ success: 
       needsMigration = true;
     }
     if (!needsMigration && planData.records?.some(r => !r.subjectId)) {
-        needsMigration = true;
+      needsMigration = true;
     }
 
     if (!needsMigration) {
@@ -799,16 +817,16 @@ export async function migrateToSubjectIds(fileName: string): Promise<{ success: 
         return review;
       });
     }
-    
+
     if (planData.bancaTopicWeights) {
-        const newBancaTopicWeights: PlanData['bancaTopicWeights'] = {};
-        for (const subjectName in planData.bancaTopicWeights) {
-            const subjectId = subjectName_to_Id.get(subjectName);
-            if (subjectId) {
-                newBancaTopicWeights[subjectId] = planData.bancaTopicWeights[subjectName];
-            }
+      const newBancaTopicWeights: PlanData['bancaTopicWeights'] = {};
+      for (const subjectName in planData.bancaTopicWeights) {
+        const subjectId = subjectName_to_Id.get(subjectName);
+        if (subjectId) {
+          newBancaTopicWeights[subjectId] = planData.bancaTopicWeights[subjectName];
         }
-        planData.bancaTopicWeights = newBancaTopicWeights;
+      }
+      planData.bancaTopicWeights = newBancaTopicWeights;
     }
 
     await fs.writeFile(filePath, JSON.stringify(planData, null, 2), 'utf-8');

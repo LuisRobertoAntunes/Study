@@ -2,18 +2,19 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
-import { 
-  getJsonFiles, 
-  getStudyRecords, 
-  saveStudyRecord, 
-  getReviewRecords, 
-  saveReviewRecord, 
-  deleteStudyRecordAction, 
-  getJsonContent, 
-  SimuladoRecord, 
-  saveSimuladoRecord, 
-  updateSimuladoRecord as updateSimuladoRecordAction, 
-  deleteSimuladoRecordAction as deleteSimuladoRecordActionImport, 
+import {
+  getJsonFiles,
+  getStudyRecords,
+  saveStudyRecord,
+  getReviewRecords,
+  saveReviewRecord,
+  deleteStudyRecordAction,
+  deleteReviewRecordAction,
+  getJsonContent,
+  SimuladoRecord,
+  saveSimuladoRecord,
+  updateSimuladoRecord as updateSimuladoRecordAction,
+  deleteSimuladoRecordAction as deleteSimuladoRecordActionImport,
   getSimuladoRecords,
   exportFullBackupAction,
   restoreFullBackupAction,
@@ -116,15 +117,15 @@ export interface TopicPerformanceEntry {
 export type TopicPerformance = TopicPerformanceEntry[];
 
 export interface HierarchicalPerformanceNode {
-    id: string;
-    name: string;
-    acertos: number;
-    erros: number;
-    naoFeitas: number;
-    total: number;
-    percentualAcerto: number;
-    is_grouping_topic?: boolean;
-    children?: HierarchicalPerformanceNode[];
+  id: string;
+  name: string;
+  acertos: number;
+  erros: number;
+  naoFeitas: number;
+  total: number;
+  percentualAcerto: number;
+  is_grouping_topic?: boolean;
+  children?: HierarchicalPerformanceNode[];
 }
 
 export interface ConsistencyData {
@@ -221,13 +222,13 @@ const calculateStats = async (
   const categoryStudyHours: { [category: string]: number } = {};
   const subjectPerformance: SubjectPerformance = {};
   const topicPerformanceMap = new Map<string, TopicPerformanceEntry>();
-  
+
   let weeklyHours = 0;
   let weeklyQuestions = 0;
   const todayForWeek = new Date();
   const dayOfWeek = todayForWeek.getDay();
   const firstDayOfWeek = new Date(todayForWeek);
-  const diff = todayForWeek.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); 
+  const diff = todayForWeek.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
   firstDayOfWeek.setDate(diff);
   firstDayOfWeek.setHours(0, 0, 0, 0);
 
@@ -272,9 +273,9 @@ const calculateStats = async (
 
     const uniqueSubjectsMap = new Map<string, any>();
     subjectsToProcess.forEach(s => {
-        if (s && typeof s === 'object' && s.subject) {
-            uniqueSubjectsMap.set(s.subject, s);
-        }
+      if (s && typeof s === 'object' && s.subject) {
+        uniqueSubjectsMap.set(s.subject, s);
+      }
     });
     const uniqueSubjects = Array.from(uniqueSubjectsMap.values());
 
@@ -382,7 +383,7 @@ const calculateStats = async (
       subjectPerformance[subjectName].correctQuestions += record.questions.correct;
       subjectPerformance[subjectName].incorrectQuestions += (record.questions.total - record.questions.correct);
     }
-    
+
     const subjectTotalQuestions = subjectPerformance[subjectName].totalQuestions;
     const subjectCorrectQuestions = subjectPerformance[subjectName].correctQuestions;
     const subjectIncorrectQuestions = subjectPerformance[subjectName].incorrectQuestions;
@@ -546,7 +547,7 @@ const calculateStats = async (
     for (let i = 29; i >= 0; i--) {
       const d = new Date(today); d.setDate(today.getDate() - i); d.setHours(0, 0, 0, 0);
       const isActive = d >= firstStudyDate;
-      
+
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, '0');
       const day = String(d.getDate()).padStart(2, '0');
@@ -563,52 +564,52 @@ const calculateStats = async (
   const isConsistencyNextDisabled = consistencyOffset === 0;
 
   const processHierarchicalPerformance = (
-      topics: EditalTopic[],
-      subjectId: string,
-      studyRecords: StudyRecord[]
+    topics: EditalTopic[],
+    subjectId: string,
+    studyRecords: StudyRecord[]
   ): HierarchicalPerformanceNode[] => {
-      return topics.map(topic => {
-          const isGroupingTopic = topic.is_grouping_topic || (topic.sub_topics && topic.sub_topics.length > 0);
-          const childrenPerformanceNodes = topic.sub_topics ? processHierarchicalPerformance(topic.sub_topics, subjectId, studyRecords) : [];
-          let acertos = 0, erros = 0, naoFeitas = 0;
-          if (isGroupingTopic) {
-              childrenPerformanceNodes.forEach(child => {
-                  acertos += child.acertos;
-                  erros += child.erros;
-                  naoFeitas += child.naoFeitas;
-              });
-          } else {
-              studyRecords.filter(record => record.subjectId === subjectId && record.topic === topic.topic_text).forEach(record => {
-                  if (record.questions) {
-                      acertos += record.questions.correct || 0;
-                      erros += (record.questions.total || 0) - (record.questions.correct || 0);
-                  }
-              });
+    return topics.map(topic => {
+      const isGroupingTopic = topic.is_grouping_topic || (topic.sub_topics && topic.sub_topics.length > 0);
+      const childrenPerformanceNodes = topic.sub_topics ? processHierarchicalPerformance(topic.sub_topics, subjectId, studyRecords) : [];
+      let acertos = 0, erros = 0, naoFeitas = 0;
+      if (isGroupingTopic) {
+        childrenPerformanceNodes.forEach(child => {
+          acertos += child.acertos;
+          erros += child.erros;
+          naoFeitas += child.naoFeitas;
+        });
+      } else {
+        studyRecords.filter(record => record.subjectId === subjectId && record.topic === topic.topic_text).forEach(record => {
+          if (record.questions) {
+            acertos += record.questions.correct || 0;
+            erros += (record.questions.total || 0) - (record.questions.correct || 0);
           }
-          const total = acertos + erros + naoFeitas;
-          const percentualAcerto = total > 0 ? (acertos / total) * 100 : 0;
-          return { id: topic.topic_text, name: topic.topic_text, acertos, erros, naoFeitas, total, percentualAcerto, is_grouping_topic: isGroupingTopic, children: childrenPerformanceNodes.length > 0 ? childrenPerformanceNodes : undefined };
-      });
+        });
+      }
+      const total = acertos + erros + naoFeitas;
+      const percentualAcerto = total > 0 ? (acertos / total) * 100 : 0;
+      return { id: topic.topic_text, name: topic.topic_text, acertos, erros, naoFeitas, total, percentualAcerto, is_grouping_topic: isGroupingTopic, children: childrenPerformanceNodes.length > 0 ? childrenPerformanceNodes : undefined };
+    });
   };
 
   const hierarchicalTopicPerformance: HierarchicalPerformanceNode[] = editalData.map(subject => {
-      const children = processHierarchicalPerformance(subject.topics, subject.id, filteredStudyRecords);
-      const countLeaves = (nodes: HierarchicalPerformanceNode[]): { acertos: number, erros: number, naoFeitas: number } => {
-        let acertos = 0, erros = 0, naoFeitas = 0;
-        nodes.forEach(node => {
-          if (!node.children || node.children.length === 0) {
-            acertos += node.acertos; erros += node.erros; naoFeitas += node.naoFeitas;
-          } else {
-            const childSums = countLeaves(node.children);
-            acertos += childSums.acertos; erros += childSums.erros; naoFeitas += childSums.naoFeitas;
-          }
-        });
-        return { acertos, erros, naoFeitas };
-      };
-      const { acertos, erros, naoFeitas } = countLeaves(children);
-      const total = acertos + erros + naoFeitas;
-      const percentualAcerto = total > 0 ? (acertos / total) * 100 : 0;
-      return { id: subject.id, name: subject.subject, acertos, erros, naoFeitas, total, percentualAcerto, children: children.length > 0 ? children : undefined };
+    const children = processHierarchicalPerformance(subject.topics, subject.id, filteredStudyRecords);
+    const countLeaves = (nodes: HierarchicalPerformanceNode[]): { acertos: number, erros: number, naoFeitas: number } => {
+      let acertos = 0, erros = 0, naoFeitas = 0;
+      nodes.forEach(node => {
+        if (!node.children || node.children.length === 0) {
+          acertos += node.acertos; erros += node.erros; naoFeitas += node.naoFeitas;
+        } else {
+          const childSums = countLeaves(node.children);
+          acertos += childSums.acertos; erros += childSums.erros; naoFeitas += childSums.naoFeitas;
+        }
+      });
+      return { acertos, erros, naoFeitas };
+    };
+    const { acertos, erros, naoFeitas } = countLeaves(children);
+    const total = acertos + erros + naoFeitas;
+    const percentualAcerto = total > 0 ? (acertos / total) * 100 : 0;
+    return { id: subject.id, name: subject.subject, acertos, erros, naoFeitas, total, percentualAcerto, children: children.length > 0 ? children : undefined };
   });
 
   return {
@@ -640,6 +641,7 @@ interface DataContextType {
   deleteStudyRecord: (id: string) => Promise<void>;
   deleteSimuladoRecord: (id: string) => Promise<void>;
   updateReviewRecord: (record: ReviewRecord) => Promise<void>;
+  deleteReviewRecord: (id: string) => Promise<void>;
   applyFilters: (filters: Filters) => void;
   handleConsistencyNav: (direction: number) => void;
   studyCycle: StudySession[] | null;
@@ -714,14 +716,14 @@ const calculateTopicScores = (
     const dive = (subjectId: string, subjectName: string, topics: EditalTopic[]) => {
       for (const topic of topics) {
         const isGroupingTopic = topic.is_grouping_topic || (topic.sub_topics && topic.sub_topics.length > 0);
-        
+
         if (!isGroupingTopic) {
-            topicList.push({
-              subjectId: subjectId,
-              subject: subjectName,
-              topic: topic.topic_text,
-              userWeight: topic.userWeight || 3,
-            });
+          topicList.push({
+            subjectId: subjectId,
+            subject: subjectName,
+            topic: topic.topic_text,
+            userWeight: topic.userWeight || 3,
+          });
         }
 
         if (topic.sub_topics && topic.sub_topics.length > 0) {
@@ -781,7 +783,7 @@ const calculateTopicScores = (
     const errorScore = 1 - metric.hitRate;
     const frequencyScore = 1 - (metric.studyCount / maxStudyCount);
     const timeScore = metric.daysSinceLastStudy / maxDays;
-    
+
     const userWeightFactor = (metric.userWeight / 5);
 
     const score = errorScore * w1 + frequencyScore * w2 + (timeScore * userWeightFactor) * w3;
@@ -806,7 +808,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     subject: '', category: '', startDate: '', endDate: '',
   });
   const [studyCycle, setStudyCycle] = useState<StudySession[] | null>(null);
-  const [sessionProgressMap, setSessionProgressMap] = useState<{[key: string]: number}>({});
+  const [sessionProgressMap, setSessionProgressMap] = useState<{ [key: string]: number }>({});
   const [completedCycles, setCompletedCycles] = useState(0);
   const [currentProgressMinutes, setCurrentProgressMinutes] = useState(0);
   const [currentStudySession, setCurrentStudySession] = useState<StudySession | null>(null);
@@ -843,7 +845,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     if (totalCycleDuration > 0) {
       const numCompletedCycles = Math.floor(totalProgressMinutes / totalCycleDuration);
       const completedCyclesTime = totalCycleDuration * numCompletedCycles;
-      
+
       let progressInCurrentCycle = 0;
       const newSessionProgressMap: { [key: string]: number } = {};
       currentStudyCycle.forEach(session => {
@@ -865,7 +867,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         if (previousCumulativeTime < completedCyclesTime) {
           timeToProcessInCurrentCycle = cumulativeTime - completedCyclesTime;
         }
-        
+
         progressInCurrentCycle += timeToProcessInCurrentCycle;
         let remainingTimeToDistribute = timeToProcessInCurrentCycle;
 
@@ -875,7 +877,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             if (currentSessionProgress < session.duration) {
               const remainingCapacity = session.duration - currentSessionProgress;
               const amountToDistribute = Math.min(remainingTimeToDistribute, remainingCapacity);
-              
+
               newSessionProgressMap[session.id as string] += amountToDistribute;
               remainingTimeToDistribute -= amountToDistribute;
 
@@ -886,7 +888,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           }
         }
       }
-      
+
       return { numCompletedCycles, progressInCurrentCycle, newSessionProgressMap, totalCycleDuration };
     }
 
@@ -899,7 +901,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       _setSelectedDataFile(fileName);
     }
   }, [selectedDataFile]);
-  
+
   const availableSubjects = useMemo(() => {
     const subjects = new Set<string>();
     studyRecords.forEach(record => subjects.add(record.subject));
@@ -914,7 +916,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const availableCategories = useMemo(() => {
     const categories = new Set<string>();
     studyRecords.forEach(record => categories.add(record.category.toLowerCase()));
-    
+
     const defaultCategories = ['Teoria', 'Revisão', 'Leitura de Lei', 'Jurisprudência', 'Questões'];
     defaultCategories.forEach(cat => categories.add(cat.toLowerCase()));
 
@@ -945,21 +947,21 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const { forceSubject } = options;
 
     if (forceSubject) {
-        const subjectId = stats.editalData.find(s => s.subject === forceSubject)?.id;
-        if (subjectId) {
-            const recommendedTopic = topicScores.find(t => t.subjectId === subjectId) || null;
-            return {
-                recommendedTopic,
-                justification: recommendedTopic ? recommendedTopic.justification : `Nenhum tópico encontrado para ${forceSubject}.`
-            };
-        }
-        return { recommendedTopic: null, justification: `Matéria ${forceSubject} não encontrada.` };
+      const subjectId = stats.editalData.find(s => s.subject === forceSubject)?.id;
+      if (subjectId) {
+        const recommendedTopic = topicScores.find(t => t.subjectId === subjectId) || null;
+        return {
+          recommendedTopic,
+          justification: recommendedTopic ? recommendedTopic.justification : `Nenhum tópico encontrado para ${forceSubject}.`
+        };
+      }
+      return { recommendedTopic: null, justification: `Matéria ${forceSubject} não encontrada.` };
     }
 
     const recommendedTopic = topicScores[0] || null;
     return {
-        recommendedTopic,
-        justification: recommendedTopic ? recommendedTopic.justification : "Nenhum tópico para recomendar."
+      recommendedTopic,
+      justification: recommendedTopic ? recommendedTopic.justification : "Nenhum tópico para recomendar."
     };
   }, [topicScores, stats.editalData]);
 
@@ -981,7 +983,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       } else if (planFiles.length > 0) {
         initialSelectedFile = planFiles[0];
       }
-      
+
       if (initialSelectedFile) {
         setSelectedDataFile(initialSelectedFile);
         const serverCycleData = await getStudyCycleFromFile(initialSelectedFile);
@@ -1004,7 +1006,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       }
       setLoading(false);
     }
-    
+
     if (authStatus === 'authenticated') {
       loadPlansAndData();
     } else if (authStatus === 'unauthenticated') {
@@ -1052,7 +1054,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         setReviewRecords(reviews);
         const simulados = await getSimuladoRecords(selectedDataFile);
         setSimuladoRecords(simulados);
-        
+
         const serverCycleData = await getStudyCycleFromFile(selectedDataFile);
         if (serverCycleData) {
           if (serverCycleData.studyCycle && (serverCycleData.studyCycle.groupA || serverCycleData.studyCycle.groupB)) {
@@ -1117,24 +1119,24 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
     const recordsToConsider = cycleGenerationTimestamp
       ? studyRecords.filter(r => {
-          // Tenta obter o timestamp preciso do ID do registro
-          const idParts = r.id.split('-');
-          const recordTimestamp = parseInt(idParts[0], 10);
+        // Tenta obter o timestamp preciso do ID do registro
+        const idParts = r.id.split('-');
+        const recordTimestamp = parseInt(idParts[0], 10);
 
-          // Se o ID contiver um timestamp válido, use-o para uma filtragem precisa
-          if (!isNaN(recordTimestamp)) {
-            return recordTimestamp >= cycleGenerationTimestamp;
-          }
+        // Se o ID contiver um timestamp válido, use-o para uma filtragem precisa
+        if (!isNaN(recordTimestamp)) {
+          return recordTimestamp >= cycleGenerationTimestamp;
+        }
 
-          // Fallback para registros mais antigos ou com formato de ID diferente
-          const [year, month, day] = r.date.split('-').map(Number);
-          const recordDate = new Date(Date.UTC(year, month - 1, day));
-          
-          const cycleDate = new Date(cycleGenerationTimestamp);
-          cycleDate.setUTCHours(0, 0, 0, 0);
+        // Fallback para registros mais antigos ou com formato de ID diferente
+        const [year, month, day] = r.date.split('-').map(Number);
+        const recordDate = new Date(Date.UTC(year, month - 1, day));
 
-          return recordDate.getTime() >= cycleDate.getTime();
-        })
+        const cycleDate = new Date(cycleGenerationTimestamp);
+        cycleDate.setUTCHours(0, 0, 0, 0);
+
+        return recordDate.getTime() >= cycleDate.getTime();
+      })
       : studyRecords;
 
     const { numCompletedCycles, progressInCurrentCycle, newSessionProgressMap } = calculateProgressValues(recordsToConsider, studyCycle);
@@ -1155,7 +1157,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (isAnimatingCompletion) {
       const { numCompletedCycles, progressInCurrentCycle, newSessionProgressMap, totalCycleDuration } = calculateProgressValues(studyRecords, studyCycle);
-      
+
       // 1. Set to 100% and show notification
       setCurrentProgressMinutes(totalCycleDuration);
       const fullSessionMap: { [key: string]: number } = {};
@@ -1190,13 +1192,13 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       showNotification(`Matéria "${record.subject}" não encontrada no plano de estudos.`, 'error');
       return;
     }
-    
-    const newRecord = { 
-      ...record, 
+
+    const newRecord = {
+      ...record,
       id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       subjectId: subjectData.id
     };
-    
+
     try {
       setStudyRecords(prevRecords => [...prevRecords, newRecord]);
       await saveStudyRecord(selectedDataFile, newRecord);
@@ -1288,7 +1290,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       const newReviewRecords: ReviewRecord[] = [];
       record.reviewPeriods.forEach(period => {
         const [year, month, day] = record.date.split('-').map(Number);
-        const originalDate = new Date(Date.UTC(year, month - 1, day)); 
+        const originalDate = new Date(Date.UTC(year, month - 1, day));
         let scheduledDate = new Date(originalDate);
 
         if (period.endsWith('d')) {
@@ -1330,6 +1332,16 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     setReviewRecords(prevRecords => prevRecords.map(r => (r.id === record.id ? record : r)));
   }, [selectedDataFile]);
 
+  const deleteReviewRecord = useCallback(async (id: string) => {
+    if (!selectedDataFile) return;
+    try {
+      await deleteReviewRecordAction(selectedDataFile, id);
+      setReviewRecords(prevRecords => prevRecords.filter(r => r.id !== id));
+    } catch (error) {
+      console.error("Failed to delete review record:", error);
+    }
+  }, [selectedDataFile]);
+
   const applyFilters = useCallback((filters: Filters) => {
     setActiveFilters(filters);
   }, []);
@@ -1354,8 +1366,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const relevantTopicScores = topicScores.filter(t => selectedSubjectIds.has(t.subjectId));
 
     if (relevantTopicScores.length === 0) {
-        showNotification('Nenhum tópico relevante encontrado para as matérias selecionadas. Tente calcular os pesos por banca.', 'warning');
-        return [];
+      showNotification('Nenhum tópico relevante encontrado para as matérias selecionadas. Tente calcular os pesos por banca.', 'warning');
+      return [];
     }
 
     // Ordena a lista de tópicos UMA VEZ, do maior score para o menor.
@@ -1364,70 +1376,70 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     // Agrupa os tópicos por matéria para garantir a rotação
     const topicsBySubject = new Map<string, TopicScore[]>();
     for (const topic of relevantTopicScores) {
-        if (!topicsBySubject.has(topic.subjectId)) {
-            topicsBySubject.set(topic.subjectId, []);
-        }
-        topicsBySubject.get(topic.subjectId)!.push(topic);
+      if (!topicsBySubject.has(topic.subjectId)) {
+        topicsBySubject.set(topic.subjectId, []);
+      }
+      topicsBySubject.get(topic.subjectId)!.push(topic);
     }
 
     // Cria uma fila de matérias para fazer o round-robin
     const subjectQueue = Array.from(topicsBySubject.keys());
-    
+
     const cycle: StudySession[] = [];
     let remainingMinutes = totalMinutes;
     const subjectDataMap = new Map(allSelectedSubjects.map(s => [s.id, { color: s.color, name: s.subject }]));
     let queueIndex = 0;
 
     while (remainingMinutes >= minSession && subjectQueue.length > 0) {
-        const currentSubjectId = subjectQueue[queueIndex];
-        const subjectTopics = topicsBySubject.get(currentSubjectId);
+      const currentSubjectId = subjectQueue[queueIndex];
+      const subjectTopics = topicsBySubject.get(currentSubjectId);
 
-        // Se a matéria não tem mais tópicos, remove da fila e continua
-        if (!subjectTopics || subjectTopics.length === 0) {
-            subjectQueue.splice(queueIndex, 1);
-            if (queueIndex >= subjectQueue.length) {
-                queueIndex = 0; // Volta ao início se removeu o último
-            }
-            continue;
+      // Se a matéria não tem mais tópicos, remove da fila e continua
+      if (!subjectTopics || subjectTopics.length === 0) {
+        subjectQueue.splice(queueIndex, 1);
+        if (queueIndex >= subjectQueue.length) {
+          queueIndex = 0; // Volta ao início se removeu o último
         }
+        continue;
+      }
 
-        // Pega o tópico de maior pontuação para a matéria atual
-        const bestTopic = subjectTopics.shift()!; // Remove o primeiro elemento
-        const subjectData = subjectDataMap.get(currentSubjectId);
+      // Pega o tópico de maior pontuação para a matéria atual
+      const bestTopic = subjectTopics.shift()!; // Remove o primeiro elemento
+      const subjectData = subjectDataMap.get(currentSubjectId);
 
-        if (!subjectData) {
-            // Caso raro: a matéria não tem dados. Pula para a próxima.
-            queueIndex = (queueIndex + 1) % subjectQueue.length;
-            continue;
-        }
-
-        // Calcula a duração da sessão
-        const { importance, knowledge } = settings.subjectSettings[currentSubjectId] || { importance: 3, knowledge: 3 };
-        const effectiveWeight = importance / (knowledge || 1);
-        const normalizedWeight = (effectiveWeight - 1/5) / (5 - 1/5);
-        let sessionDuration = minSession + (maxSession - minSession) * normalizedWeight;
-        sessionDuration = Math.round(sessionDuration / 5) * 5;
-        sessionDuration = Math.max(minSession, Math.min(maxSession, sessionDuration));
-
-        const finalDuration = Math.min(sessionDuration, remainingMinutes);
-        
-        if (finalDuration < minSession) {
-            // Não há mais tempo suficiente para uma sessão mínima, encerra.
-            break;
-        }
-
-        cycle.push({ 
-            id: `${Date.now()}-session-${cycle.length}`,
-            subjectId: currentSubjectId,
-            subject: subjectData.name,
-            duration: finalDuration,
-            color: subjectData.color
-        });
-
-        remainingMinutes -= finalDuration;
-
-        // Avança para a próxima matéria na fila
+      if (!subjectData) {
+        // Caso raro: a matéria não tem dados. Pula para a próxima.
         queueIndex = (queueIndex + 1) % subjectQueue.length;
+        continue;
+      }
+
+      // Calcula a duração da sessão
+      const { importance, knowledge } = settings.subjectSettings[currentSubjectId] || { importance: 3, knowledge: 3 };
+      const effectiveWeight = importance / (knowledge || 1);
+      const normalizedWeight = (effectiveWeight - 1 / 5) / (5 - 1 / 5);
+      let sessionDuration = minSession + (maxSession - minSession) * normalizedWeight;
+      sessionDuration = Math.round(sessionDuration / 5) * 5;
+      sessionDuration = Math.max(minSession, Math.min(maxSession, sessionDuration));
+
+      const finalDuration = Math.min(sessionDuration, remainingMinutes);
+
+      if (finalDuration < minSession) {
+        // Não há mais tempo suficiente para uma sessão mínima, encerra.
+        break;
+      }
+
+      cycle.push({
+        id: `${Date.now()}-session-${cycle.length}`,
+        subjectId: currentSubjectId,
+        subject: subjectData.name,
+        duration: finalDuration,
+        color: subjectData.color
+      });
+
+      remainingMinutes -= finalDuration;
+
+      // Avança para a próxima matéria na fila
+      queueIndex = (queueIndex + 1) % subjectQueue.length;
     }
 
     return cycle;
@@ -1488,7 +1500,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       ...prevMap,
       [completedSession.id as string]: (prevMap[completedSession.id as string] || 0) + sessionDuration,
     }));
-    
+
     setCurrentProgressMinutes(prevMinutes => prevMinutes + sessionDuration);
   }, [studyCycle]);
 
@@ -1533,9 +1545,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       const newPlans = [...prevPlans];
       const planToUpdate = JSON.parse(JSON.stringify(newPlans[planIndex]));
 
-      const subjectIndex = planToUpdate.subjects.findIndex((s:any) => s.id === subjectId);
+      const subjectIndex = planToUpdate.subjects.findIndex((s: any) => s.id === subjectId);
       if (subjectIndex === -1) return prevPlans;
-      
+
       const findAndApplyWeight = (topics: EditalTopic[]) => {
         for (let i = 0; i < topics.length; i++) {
           if (topics[i].topic_text === topicText) {
@@ -1558,7 +1570,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     if (!result.success) {
       showNotification('Erro ao salvar o peso do tópico.', 'error');
       // Reverter a alteração otimista seria ideal aqui, mas por simplicidade vamos recarregar.
-      refreshPlans(); 
+      refreshPlans();
     }
   }, [selectedDataFile, showNotification, availablePlans]);
 
@@ -1592,8 +1604,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
     const subject = stats.editalData.find(s => s.id === subjectId);
     if (!subject) {
-        showNotification('Matéria não encontrada.', 'error');
-        return;
+      showNotification('Matéria não encontrada.', 'error');
+      return;
     }
     const oldName = subject.subject;
 
@@ -1606,14 +1618,14 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       const result = await renameSubjectAction(selectedDataFile, subjectId, newName);
       if (result.success) {
         showNotification(`Matéria '${oldName}' renomeada para '${newName}' com sucesso!`, 'success');
-        
+
         // Atualização otimista do estado para evitar o reload da página
         const planIndex = availablePlans.indexOf(selectedDataFile);
         if (planIndex !== -1) {
           // 1. Atualiza studyPlans
           const updatedStudyPlans = [...studyPlans];
           const planToUpdate = { ...updatedStudyPlans[planIndex] };
-          planToUpdate.subjects = planToUpdate.subjects.map((s: any) => 
+          planToUpdate.subjects = planToUpdate.subjects.map((s: any) =>
             s.id === subjectId ? { ...s, subject: newName } : s
           );
           updatedStudyPlans[planIndex] = planToUpdate;
@@ -1684,7 +1696,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       localStorage.setItem('selectedDataFile', clientData.selectedDataFile || '');
       // As outras restaurações de estado (setStudyCycle, etc.) são tratadas pelo reload
       // que acionará os useEffects para carregar os dados dos arquivos restaurados.
-      
+
       showNotification('Backup restaurado com sucesso! A página será recarregada.', 'success');
 
       // Recarregar a página para que todos os componentes releiam os novos dados do zero
@@ -1751,7 +1763,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       setCurrentProgressMinutes(0);
       setReminderNotes([]);
       localStorage.removeItem('selectedDataFile');
-      
+
       showNotification('Todos os dados foram apagados com sucesso! A página será recarregada.', 'success');
 
       // Recarrega a página para um estado limpo
@@ -1768,7 +1780,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     <DataContext.Provider value={{
       selectedDataFile, setSelectedDataFile, availablePlans, studyPlans,
       studyRecords, reviewRecords, simuladoRecords, stats, addStudyRecord,
-      addSimuladoRecord, updateStudyRecord, deleteStudyRecord, updateReviewRecord,
+      addSimuladoRecord, updateStudyRecord, deleteStudyRecord, updateReviewRecord, deleteReviewRecord,
       updateSimuladoRecord, deleteSimuladoRecord, applyFilters, studyCycle,
       setStudyCycle, generateStudyCycle, resetStudyCycle, handleConsistencyNav,
       loading, sessionProgressMap, setSessionProgressMap, completedCycles,

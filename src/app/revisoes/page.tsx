@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useData, StudyRecord, ReviewRecord } from '../../context/DataContext';
-import { BsPlusCircleFill, BsPlayFill, BsCheckCircleFill, BsXCircleFill, BsClockFill, BsBookFill, BsCameraVideoFill, BsFileEarmarkTextFill, BsChatTextFill } from 'react-icons/bs';
+import { BsPlusCircleFill, BsPlayFill, BsCheckCircleFill, BsXCircleFill, BsClockFill, BsBookFill, BsCameraVideoFill, BsFileEarmarkTextFill, BsChatTextFill, BsTrashFill } from 'react-icons/bs';
 import PlanSelector from '../../components/PlanSelector';
 import StudyRegisterModal from '../../components/StudyRegisterModal';
 
@@ -37,7 +37,7 @@ const formatTime = (ms: number): string => {
 };
 
 export default function Revisao() {
-  const { selectedDataFile, setSelectedDataFile, availablePlans, addStudyRecord, updateStudyRecord, studyRecords, reviewRecords, updateReviewRecord } = useData();
+  const { selectedDataFile, setSelectedDataFile, availablePlans, addStudyRecord, updateStudyRecord, studyRecords, reviewRecords, updateReviewRecord, deleteReviewRecord } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<StudyRecord | null>(null);
   const [activeTab, setActiveTab] = useState<'scheduled' | 'overdue' | 'ignored' | 'completed'>('scheduled');
@@ -90,6 +90,13 @@ export default function Revisao() {
     const recordToUpdate = reviewRecords.find(record => record.id === id);
     if (recordToUpdate) {
       updateReviewRecord({ ...recordToUpdate, ignored: true, completedDate: undefined });
+    }
+  };
+
+  // Handle deleting a review
+  const handleDeleteReview = (id: string) => {
+    if (window.confirm('Tem certeza que deseja excluir esta revisão?')) {
+      deleteReviewRecord(id);
     }
   };
 
@@ -244,6 +251,7 @@ export default function Revisao() {
                       </div>
                     );
                   })()}
+                  <div className="flex-grow h-1 bg-gold-500 ml-4"></div>
                 </h2>
                 {recordsForDate.map((record) => {
                   const studyRecord = studyRecords.find(sr => sr.id === record.studyRecordId);
@@ -296,6 +304,13 @@ export default function Revisao() {
                                   <BsXCircleFill className="text-sm text-white" />
                                 </button>
                               )}
+                              <button
+                                onClick={() => handleDeleteReview(record.id)}
+                                title="Excluir Revisão"
+                                className="flex items-center justify-center p-1 bg-red-600 text-white rounded-full shadow-md hover:bg-red-700 transition-colors"
+                              >
+                                <BsTrashFill className="text-sm text-white" />
+                              </button>
                             </div>
                             <span className="text-base font-semibold text-gray-800 dark:text-gray-100 uppercase">{record.subject}</span>
                           </div>
