@@ -349,9 +349,6 @@ export default function Revisao() {
                               )}
                             </div>
                             <span className="text-base font-semibold text-gray-800 dark:text-gray-100 uppercase">{record.subject}</span>
-                            {record.reviewPeriod === 'Espontânea' && (
-                              <span className="px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 text-xs font-bold rounded-full">ESPONTÂNEA</span>
-                            )}
                           </div>
                           {/* Card Cinza Recuado */}
                           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm p-4">
