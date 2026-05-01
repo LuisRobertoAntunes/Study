@@ -105,6 +105,40 @@ export default function Revisao() {
     const now = new Date();
     const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())); // Normalize 'today' to UTC start of the day
 
+    // Se a aba for 'completed', incluímos também estudos espontâneos da categoria 'revisao'
+    if (activeTab === 'completed') {
+      // 1. Pegamos as revisões agendadas que foram concluídas
+      const completedScheduled = reviewRecords
+        .filter(record => !!record.completedDate)
+        .map(record => ({
+          ...record,
+          displayDate: record.completedDate || record.scheduledDate
+        }));
+
+      // 2. Pegamos estudos da categoria 'revisao' que NÃO estão vinculados a uma revisão agendada
+      const linkedStudyIds = new Set(reviewRecords.map(r => r.studyRecordId).filter(Boolean));
+      const spontaneousReviews = studyRecords
+        .filter(sr => sr.category === 'revisao' && !linkedStudyIds.has(sr.id))
+        .map(sr => ({
+          id: `spontaneous-${sr.id}`,
+          studyRecordId: sr.id,
+          scheduledDate: sr.date,
+          completedDate: sr.date,
+          subject: sr.subject,
+          topic: sr.topic,
+          status: 'completed' as const,
+          originalDate: sr.date,
+          reviewPeriod: 'Espontânea',
+          displayDate: sr.date
+        }));
+
+      // Combinamos e ordenamos por data de conclusão (mais recente primeiro)
+      return [...completedScheduled, ...spontaneousReviews].sort((a, b) => {
+        return new Date(b.displayDate).getTime() - new Date(a.displayDate).getTime();
+      });
+    }
+
+    // Para as outras abas, mantemos a lógica original
     return reviewRecords.filter(record => {
       const [rYear, rMonth, rDay] = record.scheduledDate.split('-').map(Number);
       const recordDate = new Date(Date.UTC(rYear, rMonth - 1, rDay)); // Normalize 'recordDate' to UTC start of the day
@@ -115,12 +149,9 @@ export default function Revisao() {
         return !record.completedDate && !record.ignored && recordDate < today;
       } else if (activeTab === 'ignored') {
         return record.ignored;
-      } else if (activeTab === 'completed') {
-        return !!record.completedDate;
       }
       return true;
     }).sort((a, b) => {
-      // Ensure sorting also uses UTC dates for consistency
       const [aYear, aMonth, aDay] = a.scheduledDate.split('-').map(Number);
       const dateA = new Date(Date.UTC(aYear, aMonth - 1, aDay));
 
@@ -129,18 +160,19 @@ export default function Revisao() {
 
       if (activeTab === 'scheduled' || activeTab === 'overdue') {
         return dateA.getTime() - dateB.getTime();
-      } else if (activeTab === 'completed' || activeTab === 'ignored') {
+      } else if (activeTab === 'ignored') {
         return dateB.getTime() - dateA.getTime();
       }
       return 0;
     });
-  }, [reviewRecords, activeTab]);
+  }, [reviewRecords, studyRecords, activeTab]);
 
   // Group filtered records by date
   const groupedReviewRecords = useMemo(() => {
-    const groups: Record<string, ReviewRecord[]> = {};
+    const groups: Record<string, any[]> = {};
     filteredReviewRecords.forEach(record => {
-      const dateKey = record.scheduledDate;
+      // Para concluídas, agrupamos pela data de conclusão/exibição
+      const dateKey = (record as any).displayDate || record.scheduledDate;
       if (!groups[dateKey]) {
         groups[dateKey] = [];
       }
@@ -224,7 +256,7 @@ export default function Revisao() {
               {activeTab === 'completed' && 'Nenhuma revisão concluída.'}
             </p>
           ) : (
-            Object.entries(groupedReviewRecords).map(([dateKey, recordsForDate]) => (
+            Object.entries(groupedReviewRecords).sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime()).map(([dateKey, recordsForDate]) => (
               <div key={dateKey} className="mb-8">
                 <h2 className="flex items-center text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4 pr-2">
                   {(() => {
@@ -234,11 +266,10 @@ export default function Revisao() {
                       return daysText;
                     }
                     const date = new Date(dateKey);
-                    const day = date.getDate().toString().padStart(2, '0');
-                    const month = date.toLocaleDateString('pt-BR', { month: 'short' }).toUpperCase().substring(0, 3);
-                    const year = date.getFullYear().toString().slice(-2);
-                    const weekday = date.toLocaleDateString('pt-BR', { weekday: 'short' }).toUpperCase().substring(0, 3);
-
+                    const day = date.getUTCDate().toString().padStart(2, '0');
+                    const month = date.toLocaleDateString('pt-BR', { month: 'short', timeZone: 'UTC' }).toUpperCase().substring(0, 3);
+                    const year = date.getUTCFullYear().toString().slice(-2);
+                    const weekday = date.toLocaleDateString('pt-BR', { weekday: 'short', timeZone: 'UTC' }).toUpperCase().substring(0, 3);
                     return (
                       <div className="flex items-center justify-start">
                         <span className="text-5xl font-extrabold mr-1">
@@ -264,7 +295,7 @@ export default function Revisao() {
 
                   return (
                     <React.Fragment key={record.id}>
-                      <div className="flex items-start space-x-4">
+                      <div className="flex items-start space-x-4 mb-4">
                         {/* Coluna da Esquerda: Selo de Dias */}
                         {activeTab !== 'completed' && activeTab !== 'ignored' && (
                           <div>
@@ -279,23 +310,25 @@ export default function Revisao() {
                           {/* Cabeçalho com Botões e Matéria */}
                           <div className="flex flex-wrap items-center justify-start space-x-4 mb-2">
                             <div className="flex items-center space-x-1">
-                              <button
-                                onClick={() => handleTriggerReviewAction(record)}
-                                title="Iniciar Revisão"
-                                className="flex items-center justify-center p-1 bg-gold-500 text-white rounded-full shadow-md hover:bg-gold-600 transition-colors"
-                              >
-                                <BsPlayFill className="text-sm" />
-                              </button>
                               {activeTab !== 'completed' && (
-                                <button
-                                  onClick={() => handleTriggerReviewAction(record)}
-                                  title="Concluir"
-                                  className="flex items-center justify-center p-1 bg-gold-500 text-white rounded-full shadow-md hover:bg-gold-600 transition-colors"
-                                >
-                                  <BsPlusCircleFill className="text-sm text-white" />
-                                </button>
+                                <>
+                                  <button
+                                    onClick={() => handleTriggerReviewAction(record)}
+                                    title="Iniciar Revisão"
+                                    className="flex items-center justify-center p-1 bg-gold-500 text-white rounded-full shadow-md hover:bg-gold-600 transition-colors"
+                                  >
+                                    <BsPlayFill className="text-sm" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleTriggerReviewAction(record)}
+                                    title="Concluir"
+                                    className="flex items-center justify-center p-1 bg-gold-500 text-white rounded-full shadow-md hover:bg-gold-600 transition-colors"
+                                  >
+                                    <BsPlusCircleFill className="text-sm text-white" />
+                                  </button>
+                                </>
                               )}
-                              {activeTab !== 'ignored' && (
+                              {activeTab !== 'ignored' && activeTab !== 'completed' && (
                                 <button
                                   onClick={() => handleIgnoreReview(record.id)}
                                   title="Ignorar"
@@ -304,22 +337,28 @@ export default function Revisao() {
                                   <BsXCircleFill className="text-sm text-white" />
                                 </button>
                               )}
-                              <button
-                                onClick={() => handleDeleteReview(record.id)}
-                                title="Excluir Revisão"
-                                className="flex items-center justify-center p-1 bg-red-600 text-white rounded-full shadow-md hover:bg-red-700 transition-colors"
-                              >
-                                <BsTrashFill className="text-sm text-white" />
-                              </button>
+                              {/* Só permite excluir se for uma revisão agendada (não espontânea) */}
+                              {!record.id.startsWith('spontaneous-') && (
+                                <button
+                                  onClick={() => handleDeleteReview(record.id)}
+                                  title="Excluir Revisão"
+                                  className="flex items-center justify-center p-1 bg-red-600 text-white rounded-full shadow-md hover:bg-red-700 transition-colors"
+                                >
+                                  <BsTrashFill className="text-sm text-white" />
+                                </button>
+                              )}
                             </div>
                             <span className="text-base font-semibold text-gray-800 dark:text-gray-100 uppercase">{record.subject}</span>
+                            {record.reviewPeriod === 'Espontânea' && (
+                              <span className="px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 text-xs font-bold rounded-full">ESPONTÂNEA</span>
+                            )}
                           </div>
                           {/* Card Cinza Recuado */}
                           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm p-4">
                             <div className="flex justify-between items-center">
                               {/* Grupo 1: Identificação */}
                               <div className="flex items-center space-x-3 text-sm text-gray-600 dark:text-gray-300">
-                                <span className="font-bold">{new Date(record.scheduledDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                                <span className="font-bold">{new Date(record.displayDate || record.scheduledDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })}</span>
                                 <span>{record.topic}</span>
                                 <span className={`px-2 py-1 rounded-full font-semibold ${studyRecord ? categoryColorMap[studyRecord.category] + ' dark:bg-opacity-20' : 'bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200'}`}>
                                   {studyRecord?.category ? categoryDisplayMap[studyRecord.category] || studyRecord.category.toUpperCase() : 'N/A'}
@@ -342,7 +381,7 @@ export default function Revisao() {
                                       <BsXCircleFill className="mr-1" /> {(studyRecord.questions?.total || 0) - (studyRecord.questions?.correct || 0)}
                                     </span>
                                     <span className="font-semibold">
-                                      {`${Math.round(((studyRecord.questions?.correct || 0) / (studyRecord.questions?.total || 0)) * 100)}%`}
+                                      {studyRecord.questions?.total > 0 ? `${Math.round(((studyRecord.questions?.correct || 0) / (studyRecord.questions?.total || 0)) * 100)}%` : '0%'}
                                     </span>
                                   </>
                                 )}
@@ -382,7 +421,7 @@ export default function Revisao() {
                                 })()}
                               </div>
                               <div className="relative">
-                                {studyRecord && studyRecord.comments && (
+                                {studyRecord && studyRecord.notes && (
                                   <button
                                     onClick={() => setActiveCommentId(activeCommentId === record.id ? null : record.id)}
                                     title="Comentários"
@@ -393,7 +432,7 @@ export default function Revisao() {
                                 )}
                                 {activeCommentId === record.id && (
                                   <div className="absolute bottom-full right-0 mb-2 w-64 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-10 p-4">
-                                    <p className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{studyRecord?.comments}</p>
+                                    <p className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{studyRecord?.notes}</p>
                                     <div className="absolute bottom-0 right-4 w-4 h-4 bg-white dark:bg-gray-700 border-b border-r border-gray-300 dark:border-gray-600 rotate-45"></div>
                                   </div>
                                 )}
