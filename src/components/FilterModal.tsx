@@ -21,11 +21,12 @@ interface EditalSubject {
 interface FilterModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onApply: (filters: any) => void;
+  onApply: (filters: any) => void; // CORRIGIDO: Alterado de onApply para onApplyFilters
   sessions: StudySession[];
   availableCategories: string[];
   availableSubjects: string[];
   availableEditalData: EditalSubject[];
+  initialFilters?: any; // ADICIONADO: Suporte a filtros iniciais
 }
 
 const categoryIcons: { [key: string]: JSX.Element } = {
@@ -56,16 +57,36 @@ const FilterModal: React.FC<FilterModalProps> = ({
   availableCategories,
   availableSubjects,
   availableEditalData,
+  initialFilters,
 }) => {
-  const [startDate, setStartDate] = useState<Date | null>(null);
-  const [endDate, setEndDate] = useState<Date | null>(null);
-  const [minDuration, setMinDuration] = useState<string>('');
-  const [maxDuration, setMaxDuration] = useState<string>('');
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
-  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
-  const [minPerformance, setMinPerformance] = useState('');
-  const [maxPerformance, setMaxPerformance] = useState('');
+  // CORRIGIDO: Inicializa com filtros iniciais se fornecidos
+  const [startDate, setStartDate] = useState<Date | null>(
+    initialFilters?.startDate instanceof Date ? initialFilters.startDate : null
+  );
+  const [endDate, setEndDate] = useState<Date | null>(
+    initialFilters?.endDate instanceof Date ? initialFilters.endDate : null
+  );
+  const [minDuration, setMinDuration] = useState<string>(
+    initialFilters?.minDuration ? String(initialFilters.minDuration) : ''
+  );
+  const [maxDuration, setMaxDuration] = useState<string>(
+    initialFilters?.maxDuration ? String(initialFilters.maxDuration) : ''
+  );
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    initialFilters?.categories || []
+  );
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(
+    initialFilters?.subjects || []
+  );
+  const [selectedTopics, setSelectedTopics] = useState<string[]>(
+    initialFilters?.topics || []
+  );
+  const [minPerformance, setMinPerformance] = useState<string>(
+    initialFilters?.minPerformance ? String(initialFilters.minPerformance) : ''
+  );
+  const [maxPerformance, setMaxPerformance] = useState<string>(
+    initialFilters?.maxPerformance ? String(initialFilters.maxPerformance) : ''
+  );
 
   const topicsForSelectedSubject = useMemo(() => {
     if (selectedSubjects.length === 0 || !availableEditalData) {
@@ -87,21 +108,23 @@ const FilterModal: React.FC<FilterModalProps> = ({
     );
   };
 
+  // CORRIGIDO: Função handleApply com melhor estrutura de dados
   const handleApply = () => {
     onApply({
       startDate,
       endDate,
       minDuration: minDuration ? Number(minDuration) : undefined,
       maxDuration: maxDuration ? Number(maxDuration) : undefined,
-      categories: selectedCategories,
-      subjects: selectedSubjects,
-      topics: selectedTopics,
+      categories: selectedCategories, // Array de categorias
+      subjects: selectedSubjects, // Array de disciplinas
+      topics: selectedTopics, // Array de tópicos
       minPerformance: minPerformance ? Number(minPerformance) : undefined,
       maxPerformance: maxPerformance ? Number(maxPerformance) : undefined,
     });
     onClose();
   };
 
+  // CORRIGIDO: Função handleClear com melhor estrutura
   const handleClear = () => {
     setStartDate(null);
     setEndDate(null);
@@ -112,7 +135,17 @@ const FilterModal: React.FC<FilterModalProps> = ({
     setSelectedTopics([]);
     setMinPerformance('');
     setMaxPerformance('');
-    onApply({});
+    onApply({
+      startDate: null,
+      endDate: null,
+      minDuration: undefined,
+      maxDuration: undefined,
+      categories: [],
+      subjects: [],
+      topics: [],
+      minPerformance: undefined,
+      maxPerformance: undefined,
+    });
   };
 
   if (!isOpen) return null;
