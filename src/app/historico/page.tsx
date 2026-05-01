@@ -33,11 +33,25 @@ const categoryDisplayMap: { [key: string]: string } = {
   jurisprudencia: 'Jurisprudência',
 };
 
+// Mapa reverso para converter rótulos exibidos para valores internos
+const categoryReverseMap: { [key: string]: string } = {
+  'Teoria': 'teoria',
+  'Revisão': 'revisao',
+  'Questões': 'questoes',
+  'Leitura de Lei': 'leitura_lei',
+  'Jurisprudência': 'jurisprudencia',
+};
+
 interface Filters {
-  subject: string;
-  category: string;
-  startDate: string;
-  endDate: string;
+  subjects: string[]; // Alterado para array para compatibilidade com FilterModal
+  categories: string[]; // Alterado para array para compatibilidade com FilterModal
+  startDate: Date | null;
+  endDate: Date | null;
+  minDuration?: number;
+  maxDuration?: number;
+  minPerformance?: number;
+  maxPerformance?: number;
+  topics: string[];
 }
 
 const HistoricoPage = () => {
@@ -61,12 +75,17 @@ const HistoricoPage = () => {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false); // Estado para o modal de confirmação
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null); // Estado para o ID do registro a ser excluído
 
-  // Estado para os filtros
+  // Estado para os filtros - CORRIGIDO para aceitar arrays e datas
   const [filters, setFilters] = useState<Filters>({
-    subject: '',
-    category: '',
-    startDate: '',
-    endDate: '',
+    subjects: [],
+    categories: [],
+    startDate: null,
+    endDate: null,
+    minDuration: undefined,
+    maxDuration: undefined,
+    minPerformance: undefined,
+    maxPerformance: undefined,
+    topics: [],
   });
 
   // Cria um mapa de matérias para cores para fácil acesso
@@ -90,17 +109,67 @@ const HistoricoPage = () => {
     return studyRecords;
   }, [studyRecords]);
 
-  // Aplica os filtros aos registros de estudo
+  // Aplica os filtros aos registros de estudo - CORRIGIDO para trabalhar com arrays
   const filteredRecords = useMemo(() => {
     return allStudyRecords.filter(record => {
       const recordDate = new Date(record.date);
-      const startDate = filters.startDate ? new Date(filters.startDate) : null;
-      const endDate = filters.endDate ? new Date(filters.endDate) : null;
 
-      if (startDate && recordDate < startDate) return false;
-      if (endDate && recordDate > endDate) return false;
-      if (filters.subject && record.subject !== filters.subject) return false;
-      if (filters.category && record.category !== filters.category) return false;
+      // Filtro de data de início
+      if (filters.startDate) {
+        const startDate = new Date(filters.startDate);
+        startDate.setHours(0, 0, 0, 0);
+        if (recordDate < startDate) return false;
+      }
+
+      // Filtro de data de fim
+      if (filters.endDate) {
+        const endDate = new Date(filters.endDate);
+        endDate.setHours(23, 59, 59, 999);
+        if (recordDate > endDate) return false;
+      }
+
+      // Filtro de disciplinas (array)
+      if (filters.subjects.length > 0 && !filters.subjects.includes(record.subject)) {
+        return false;
+      }
+
+      // Filtro de categorias (array) - CORRIGIDO: compara com valores internos
+      if (filters.categories.length > 0) {
+        // Converte os rótulos exibidos para valores internos
+        const internalCategories = filters.categories.map(cat => categoryReverseMap[cat] || cat);
+        if (!internalCategories.includes(record.category)) {
+          return false;
+        }
+      }
+
+      // Filtro de tópicos (array)
+      if (filters.topics.length > 0 && !filters.topics.includes(record.topic)) {
+        return false;
+      }
+
+      // Filtro de duração mínima (em minutos)
+      if (filters.minDuration !== undefined) {
+        const durationInMinutes = record.studyTime / 60000; // Converte ms para minutos
+        if (durationInMinutes < filters.minDuration) return false;
+      }
+
+      // Filtro de duração máxima (em minutos)
+      if (filters.maxDuration !== undefined) {
+        const durationInMinutes = record.studyTime / 60000; // Converte ms para minutos
+        if (durationInMinutes > filters.maxDuration) return false;
+      }
+
+      // Filtro de desempenho mínimo (em percentual)
+      if (filters.minPerformance !== undefined && record.questions) {
+        const performance = (record.questions.correct / record.questions.total) * 100;
+        if (performance < filters.minPerformance) return false;
+      }
+
+      // Filtro de desempenho máximo (em percentual)
+      if (filters.maxPerformance !== undefined && record.questions) {
+        const performance = (record.questions.correct / record.questions.total) * 100;
+        if (performance > filters.maxPerformance) return false;
+      }
 
       return true;
     });
@@ -159,9 +228,37 @@ const HistoricoPage = () => {
     setIsRegisterModalOpen(false);
   };
 
-  const handleApplyFilters = (newFilters: Filters) => {
-    setFilters(newFilters);
+  // CORRIGIDO: Função para aplicar filtros recebidos do FilterModal
+  const handleApplyFilters = (newFilters: any) => {
+    // Converte os dados recebidos do FilterModal para o formato esperado
+    const convertedFilters: Filters = {
+      subjects: newFilters.subjects || [],
+      categories: newFilters.categories || [], // Já vem em rótulos exibidos
+      startDate: newFilters.startDate || null,
+      endDate: newFilters.endDate || null,
+      minDuration: newFilters.minDuration,
+      maxDuration: newFilters.maxDuration,
+      minPerformance: newFilters.minPerformance,
+      maxPerformance: newFilters.maxPerformance,
+      topics: newFilters.topics || [],
+    };
+    setFilters(convertedFilters);
     setIsFilterModalOpen(false);
+  };
+
+  // Função para limpar filtros
+  const handleClearFilters = () => {
+    setFilters({
+      subjects: [],
+      categories: [],
+      startDate: null,
+      endDate: null,
+      minDuration: undefined,
+      maxDuration: undefined,
+      minPerformance: undefined,
+      maxPerformance: undefined,
+      topics: [],
+    });
   };
   
   const availableSubjects = useMemo(() => {
@@ -171,6 +268,20 @@ const HistoricoPage = () => {
     return [];
   }, [stats]);
 
+  // Verifica se há filtros ativos
+  const hasActiveFilters = useMemo(() => {
+    return (
+      filters.subjects.length > 0 ||
+      filters.categories.length > 0 ||
+      filters.startDate !== null ||
+      filters.endDate !== null ||
+      filters.minDuration !== undefined ||
+      filters.maxDuration !== undefined ||
+      filters.minPerformance !== undefined ||
+      filters.maxPerformance !== undefined ||
+      filters.topics.length > 0
+    );
+  }, [filters]);
 
   return (
     <>
@@ -190,11 +301,24 @@ const HistoricoPage = () => {
             
             <button
               onClick={() => setIsFilterModalOpen(true)}
-              className="flex items-center px-4 py-2 bg-gold-500 text-white rounded-full shadow-lg hover:bg-gold-600 transition-all duration-300 text-base font-semibold"
+              className={`flex items-center px-4 py-2 rounded-full shadow-lg transition-all duration-300 text-base font-semibold ${
+                hasActiveFilters
+                  ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                  : 'bg-gold-500 hover:bg-gold-600 text-white'
+              }`}
             >
               <BsFunnel className="mr-2" />
-              Filtros
+              Filtros {hasActiveFilters && `(${Object.values(filters).filter(v => v && (Array.isArray(v) ? v.length > 0 : true)).length})`}
             </button>
+
+            {hasActiveFilters && (
+              <button
+                onClick={handleClearFilters}
+                className="flex items-center px-4 py-2 bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 transition-all duration-300 text-base font-semibold"
+              >
+                Limpar Filtros
+              </button>
+            )}
           </div>
         </header>
         <hr className="mt-2 mb-6 border-gray-300 dark:border-gray-700" />
@@ -205,7 +329,7 @@ const HistoricoPage = () => {
           {sortedDates.length === 0 ? (
             <div className="text-center py-10">
               <p className="text-gray-500 dark:text-gray-400">
-                {Object.values(filters).some(v => v !== '') 
+                {hasActiveFilters
                   ? "Nenhum registro corresponde aos filtros aplicados."
                   : "Nenhum registro de estudo encontrado. Comece adicionando seu primeiro estudo!"}
               </p>
@@ -276,7 +400,7 @@ const HistoricoPage = () => {
       <FilterModal
         isOpen={isFilterModalOpen}
         onClose={() => setIsFilterModalOpen(false)}
-        onApplyFilters={handleApplyFilters}
+        onApply={handleApplyFilters}
         availableSubjects={availableSubjects}
         availableCategories={Object.values(categoryDisplayMap)}
         initialFilters={filters}
