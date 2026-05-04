@@ -349,6 +349,14 @@ export default function Revisao() {
                               )}
                             </div>
                             <span className="text-base font-semibold text-gray-800 dark:text-gray-100 uppercase">{record.subject}</span>
+                            {/* Tag de Revisão com cor diferenciada */}
+                            <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
+                              record.id.startsWith('spontaneous-')
+                                ? 'bg-purple-200 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+                                : 'bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                            }`}>
+                              Revisão
+                            </span>
                           </div>
                           {/* Card Cinza Recuado */}
                           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm p-4">
@@ -357,9 +365,6 @@ export default function Revisao() {
                               <div className="flex items-center space-x-3 text-sm text-gray-600 dark:text-gray-300">
                                 <span className="font-bold">{new Date(record.displayDate || record.scheduledDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })}</span>
                                 <span>{record.topic}</span>
-                                <span className={`px-2 py-1 rounded-full font-semibold ${studyRecord ? categoryColorMap[studyRecord.category] + ' dark:bg-opacity-20' : 'bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200'}`}>
-                                  {studyRecord?.category ? categoryDisplayMap[studyRecord.category] || studyRecord.category.toUpperCase() : 'N/A'}
-                                </span>
                               </div>
 
                               {/* Grupo 2: Métricas */}
