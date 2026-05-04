@@ -257,7 +257,17 @@ export default function Revisao() {
               {activeTab === 'completed' && 'Nenhuma revisão concluída.'}
             </p>
           ) : (
-            Object.entries(groupedReviewRecords).sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime()).map(([dateKey, recordsForDate]) => (
+            Object.entries(groupedReviewRecords).sort((a, b) => {
+              // Para 'scheduled' e 'overdue': ordena crescente (mais próximas primeiro)
+              // Para 'completed' e 'ignored': ordena decrescente (mais recentes primeiro)
+              const dateA = new Date(a[0]).getTime();
+              const dateB = new Date(b[0]).getTime();
+              if (activeTab === 'scheduled' || activeTab === 'overdue') {
+                return dateA - dateB; // Crescente: hoje/amanhã primeiro
+              } else {
+                return dateB - dateA; // Decrescente: mais recentes primeiro
+              }
+            }).map(([dateKey, recordsForDate]) => (
               <div key={dateKey} className="mb-8">
                 <h2 className="flex items-center text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4 pr-2">
                   {(() => {
