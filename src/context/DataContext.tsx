@@ -1204,6 +1204,41 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       await saveStudyRecord(selectedDataFile, newRecord);
       showNotification('Registro de estudo salvo com sucesso!', 'success');
 
+      // Lógica para dar baixa automática em revisões pendentes (hoje ou atrasadas)
+      // se o estudo for da categoria 'revisao'
+      if (newRecord.category === 'revisao') {
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        
+        // Encontra revisões pendentes para a mesma matéria e tópico que estão para hoje ou atrasadas
+        const pendingReviews = reviewRecords.filter(r => 
+          r.subjectId === newRecord.subjectId && 
+          r.topic === newRecord.topic && 
+          !r.completedDate && 
+          !r.ignored &&
+          r.scheduledDate <= todayStr
+        );
+
+        if (pendingReviews.length > 0) {
+          // Ordena para pegar a mais antiga primeiro
+          const sortedPending = [...pendingReviews].sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
+          const reviewToComplete = sortedPending[0];
+          
+          // Atualiza a revisão para concluída
+          const updatedReview = {
+            ...reviewToComplete,
+            completedDate: newRecord.date,
+            studyRecordId: newRecord.id // Vincula ao novo registro de estudo
+          };
+
+          setReviewRecords(prevReviews => 
+            prevReviews.map(r => r.id === updatedReview.id ? updatedReview : r)
+          );
+          await saveReviewRecord(selectedDataFile, updatedReview);
+          showNotification(`Revisão agendada de "${newRecord.topic}" foi marcada como concluída automaticamente!`, 'success');
+        }
+      }
+
       if (newRecord.reviewPeriods && newRecord.reviewPeriods.length > 0) {
         const newReviewRecords: ReviewRecord[] = [];
         newRecord.reviewPeriods.forEach(period => {
