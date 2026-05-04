@@ -116,7 +116,8 @@ export default function Revisao() {
         }));
 
       // 2. Pegamos estudos da categoria 'revisao' que NÃO estão vinculados a uma revisão agendada
-      const linkedStudyIds = new Set(reviewRecords.map(r => r.studyRecordId).filter(Boolean));
+      // Usamos um Set para busca rápida de IDs de estudos que já estão vinculados a revisões
+      const linkedStudyIds = new Set(reviewRecords.filter(r => !!r.completedDate).map(r => r.studyRecordId));
       const spontaneousReviews = studyRecords
         .filter(sr => sr.category === 'revisao' && !linkedStudyIds.has(sr.id))
         .map(sr => ({
