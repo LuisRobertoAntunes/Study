@@ -72,10 +72,16 @@ export default function AddSimuladoModal({ isOpen, onClose, initialSimulado }: A
 
   const handleSubjectChange = (index: number, field: keyof Subject, value: string) => {
     const newSubjects = [...subjects];
-    const numericValue = parseInt(value, 10);
+    const numericValue = Number(value.replace(',', '.'));
     if (typeof newSubjects[index][field] === 'number') {
-      (newSubjects[index] as any)[field] = isNaN(numericValue) ? 0 : numericValue;
-    }
+
+  // Bloqueia valores inválidos
+  if (isNaN(numericValue) || numericValue <= 0) {
+    return;
+  }
+
+  (newSubjects[index] as any)[field] = numericValue;
+}
     setSubjects(newSubjects);
   };
 
