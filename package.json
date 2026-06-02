@@ -1,7 +1,7 @@
 {
   "name": "study",
   "description": "Aplicação open-source e gratuita de planejamento de estudos, projetada para ajudar estudantes e concurseiros a otimizar sua rotina, com foco na democratização do acesso a ferramentas de alta performance.",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "homepage": "https://github.com/LuisRobertoAntunes/Study",
   "author": {
     "name": "LuisRoberto",
@@ -111,4 +111,5 @@
     "typescript": "^5",
     "wait-on": "^7.0.0"
   }
+  
 }

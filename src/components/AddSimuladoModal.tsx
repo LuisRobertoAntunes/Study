@@ -19,7 +19,13 @@ interface AddSimuladoModalProps {
 }
 
 export default function AddSimuladoModal({ isOpen, onClose, initialSimulado }: AddSimuladoModalProps) {
-  const { studyPlans, addSimuladoRecord, updateSimuladoRecord } = useData();
+  const {
+  studyPlans,
+  selectedDataFile,
+  availablePlans,
+  addSimuladoRecord,
+  updateSimuladoRecord
+} = useData();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [examStyle, setExamStyle] = useState('Múltipla Escolha');
@@ -48,24 +54,27 @@ export default function AddSimuladoModal({ isOpen, onClose, initialSimulado }: A
         setTimeSpent('00:00:00');
         setComments('');
         // Recarregar subjects do plano de estudos para um novo simulado
-        if (studyPlans) {
-          const subjectsMap = new Map<string, Subject>();
-          studyPlans.forEach(plan => {
-            plan.subjects?.forEach(subject => {
-              if (!subjectsMap.has(subject.subject)) {
-                subjectsMap.set(subject.subject, {
-                  name: subject.subject,
-                  weight: 1,
-                  totalQuestions: 0,
-                  correct: 0,
-                  incorrect: 0,
-                  color: subject.color, // Adiciona a cor da matéria
-                });
-              }
-            });
-          });
-          setSubjects(Array.from(subjectsMap.values()));
-        }
+        if (studyPlans?.length > 0) {
+  const currentPlanIndex = availablePlans.indexOf(selectedDataFile);
+  const currentPlan = studyPlans[currentPlanIndex];
+
+  if (currentPlan?.subjects) {
+    const subjectsMap = new Map<string, Subject>();
+
+    currentPlan.subjects.forEach(subject => {
+      subjectsMap.set(subject.subject, {
+        name: subject.subject,
+        weight: 1,
+        totalQuestions: 0,
+        correct: 0,
+        incorrect: 0,
+        color: subject.color,
+      });
+    });
+
+    setSubjects(Array.from(subjectsMap.values()));
+  }
+}
       }
     }
   }, [isOpen, initialSimulado, studyPlans]);

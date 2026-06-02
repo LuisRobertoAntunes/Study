@@ -17,30 +17,43 @@ const formatTime = (milliseconds: number) => {
 };
 
 export default function MateriasPage() {
-  const { studyPlans, studyRecords, loading } = useData();
+  const {
+  studyPlans,
+  studyRecords,
+  selectedDataFile,
+  availablePlans,
+  loading
+} = useData();
   const router = useRouter();
   const [hoveredSubject, setHoveredSubject] = useState<string | null>(null);
 
   const allSubjects = useMemo(() => {
-    const subjectsMap = new Map<string, { color: string; plans: string[] }>();
+  if (!studyPlans?.length) {
+    return [];
+  }
 
-    if (!studyPlans) {
-      return [];
-    }
+  const currentPlanIndex = availablePlans.indexOf(selectedDataFile);
 
-    studyPlans.forEach(plan => {
-      if (plan.subjects) {
-        plan.subjects.forEach(subject => {
-          if (!subjectsMap.has(subject.subject)) {
-            subjectsMap.set(subject.subject, { color: subject.color || '#94A3B8', plans: [] });
-          }
-          subjectsMap.get(subject.subject)!.plans.push(plan.name);
-        });
-      }
-    });
+  if (currentPlanIndex < 0) {
+    return [];
+  }
 
-    return Array.from(subjectsMap.entries()).map(([name, data]) => ({ name, ...data }));
-  }, [studyPlans]);
+  const currentPlan = studyPlans[currentPlanIndex];
+
+  if (!currentPlan?.subjects) {
+    return [];
+  }
+
+  return currentPlan.subjects.map(subject => ({
+    name: subject.subject,
+    color: subject.color || '#94A3B8',
+    plans: [currentPlan.name]
+  }));
+}, [
+  studyPlans,
+  selectedDataFile,
+  availablePlans
+]);
 
   const subjectStats = useMemo(() => {
     const stats: { [key: string]: { totalStudyTime: number; totalQuestions: number; performance: number } } = {};
