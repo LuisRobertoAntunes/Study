@@ -1,4 +1,3 @@
-// electron/preload.js
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -7,6 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   removeTimerTickListeners: () => ipcRenderer.removeAllListeners('timer-tick'),
   updateTitlebarColor: (colors) => ipcRenderer.send('update-titlebar-color', colors),
   selectFolder: () => ipcRenderer.invoke('select-folder'),
+  getDefaultBackupPath: () => ipcRenderer.invoke('get-default-backup-path'),
   saveBackup: (data, folderPath, fileName) => ipcRenderer.invoke('save-backup', { data, folderPath, fileName }),
   getBackups: (folderPath) => ipcRenderer.invoke('get-backups', folderPath),
   deleteBackup: (filePath) => ipcRenderer.invoke('delete-backup', filePath),

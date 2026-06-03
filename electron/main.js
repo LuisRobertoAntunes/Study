@@ -151,6 +151,14 @@ ipcMain.handle('select-folder', async () => {
   return result.filePaths[0];
 });
 
+ipcMain.handle('get-default-backup-path', async () => {
+  const defaultPath = path.join(app.getPath("userData"), "backups");
+  if (!fs.existsSync(defaultPath)) {
+    await fsp.mkdir(defaultPath, { recursive: true });
+  }
+  return defaultPath;
+});
+
 ipcMain.handle('save-backup', async (event, { data, folderPath, fileName }) => {
   try {
     if (!fs.existsSync(folderPath)) {

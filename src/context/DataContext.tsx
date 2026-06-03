@@ -1851,6 +1851,22 @@ const BackupManager = () => {
   useEffect(() => {
     if (typeof window === 'undefined' || !window.electronAPI) return;
 
+    const initializeDefaultSettings = async () => {
+      if (!localStorage.getItem('backupSettings')) {
+        const defaultPath = await window.electronAPI.getDefaultBackupPath();
+        const defaultSettings = {
+          enabled: true,
+          backupOnClose: true,
+          interval: 5,
+          folderPath: defaultPath,
+          maxBackups: 20
+        };
+        localStorage.setItem('backupSettings', JSON.stringify(defaultSettings));
+      }
+    };
+
+    initializeDefaultSettings();
+
     const runBackup = async () => {
       const settings = JSON.parse(localStorage.getItem('backupSettings') || '{}');
       if (!settings.enabled || !settings.folderPath) return;

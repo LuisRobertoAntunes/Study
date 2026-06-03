@@ -10,10 +10,11 @@ import ThemeToggleButton from './ThemeToggleButton';
 import PlanSelector from './PlanSelector';
 import { useTheme } from '../context/ThemeContext';
 import { useSession, signOut } from 'next-auth/react';
-import { FaSignOutAlt } from 'react-icons/fa';
+import { FaSignOutAlt, FaExclamationTriangle } from 'react-icons/fa';
 
 
 const Sidebar = () => {
+  const [isSignOutModalOpen, setIsSignOutModalOpen] = React.useState(false);
   const { isSidebarExpanded, toggleSidebar } = useSidebar();
   const pathname = usePathname();
   const { theme } = useTheme();
@@ -75,7 +76,7 @@ const Sidebar = () => {
             {session && (
               <li className="mb-2">
                 <button
-                  onClick={() => signOut({ callbackUrl: '/login' })}
+                  onClick={() => setIsSignOutModalOpen(true)}
                   className="flex items-center p-2 rounded-md hover:bg-gold-600 transition-colors duration-200 w-full text-left dark:hover:bg-gray-700 dark:focus:ring-gray-500 dark:text-gray-100"
                 >
                   <FaSignOutAlt className="mr-2" />Sair ({session.user?.name})
@@ -94,6 +95,39 @@ const Sidebar = () => {
         </div>
       </div>
 
+      {/* Modal de Confirmação de Sair */}
+      {isSignOutModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md w-screen h-screen left-0 top-0">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-md w-full p-8 border border-gray-100 dark:border-slate-700 transform transition-all animate-in fade-in zoom-in duration-300">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 mx-auto mb-4">
+              <FaExclamationTriangle size={24} />
+            </div>
+            
+            <h3 className="text-xl font-bold text-center text-gray-800 dark:text-slate-100 mb-2">
+              Deseja realmente sair?
+            </h3>
+            
+            <p className="text-gray-600 dark:text-slate-400 text-center mb-6">
+              Você precisará fazer login novamente para acessar seus dados de estudo.
+            </p>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setIsSignOutModalOpen(false)}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-600 text-gray-700 dark:text-slate-300 font-semibold hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => signOut({ callbackUrl: '/login' })}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-600/20"
+              >
+                Sair
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

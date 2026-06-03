@@ -26,18 +26,33 @@ const BackupPage = () => {
 
   // Configurações de Backup
   const [settings, setSettings] = useState<BackupSettings>({
-    enabled: false,
-    backupOnClose: false,
+    enabled: true,
+    backupOnClose: true,
     interval: 5,
     folderPath: '',
     maxBackups: 20
   });
 
   useEffect(() => {
-    const savedSettings = localStorage.getItem('backupSettings');
-    if (savedSettings) {
-      setSettings(JSON.parse(savedSettings));
-    }
+    const initSettings = async () => {
+      const savedSettings = localStorage.getItem('backupSettings');
+      if (savedSettings) {
+        setSettings(JSON.parse(savedSettings));
+      } else if (window.electronAPI) {
+        // Se não houver configurações salvas, define o padrão e ativa
+        const defaultPath = await window.electronAPI.getDefaultBackupPath();
+        const defaultSettings = {
+          enabled: true,
+          backupOnClose: true,
+          interval: 5,
+          folderPath: defaultPath,
+          maxBackups: 20
+        };
+        setSettings(defaultSettings);
+        localStorage.setItem('backupSettings', JSON.stringify(defaultSettings));
+      }
+    };
+    initSettings();
   }, []);
 
   const saveSettings = (newSettings: BackupSettings) => {
