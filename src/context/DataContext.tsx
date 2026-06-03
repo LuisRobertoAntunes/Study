@@ -1830,7 +1830,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       updateReminderNote, exportAllData, importAllData, deletePlan, renameSubject, saveSubject,
       topicScores, getRecommendedSession, updateTopicWeight, availableSubjects, availableCategories, clearAllData, refreshPlans,
       cycleGenerationTimestamp,
-    }}>      {children}
+    }}>      <BackupManager />
+      {children}
     </DataContext.Provider>
   );
 };
@@ -1841,4 +1842,72 @@ export const useData = () => {
     throw new Error('useData must be used within a DataProvider');
   }
   return context;
+};
+
+// Componente interno para gerenciar o backup automático sem poluir o DataProvider
+const BackupManager = () => {
+  const { exportAllData } = useData();
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.electronAPI) return;
+
+    const runBackup = async () => {
+      const settings = JSON.parse(localStorage.getItem('backupSettings') || '{}');
+      if (!settings.enabled || !settings.folderPath) return;
+
+      try {
+        const data = await exportAllData();
+        const date = new Date().toISOString().replace(/[:.]/g, '-');
+        const fileName = `backup-study-auto-${date}.json`;
+        
+        await window.electronAPI.saveBackup(data, settings.folderPath, fileName);
+        
+        // Limpar backups antigos
+        if (settings.maxBackups) {
+          const backups = await window.electronAPI.getBackups(settings.folderPath);
+          if (backups.length > settings.maxBackups) {
+            const toDelete = backups.slice(settings.maxBackups);
+            for (const b of toDelete) {
+              await window.electronAPI.deleteBackup(b.path);
+            }
+          }
+        }
+        
+        localStorage.setItem('lastBackupTime', Date.now().toString());
+      } catch (error) {
+        console.error('Falha no backup automático:', error);
+      }
+    };
+
+    // Backup ao fechar
+    const handleClosing = async () => {
+      const settings = JSON.parse(localStorage.getItem('backupSettings') || '{}');
+      if (settings.backupOnClose) {
+        await runBackup();
+      }
+      window.electronAPI.sendBackupComplete();
+    };
+
+    window.electronAPI.onAppClosing(handleClosing);
+
+    // Backup por intervalo
+    const intervalId = setInterval(() => {
+      const settings = JSON.parse(localStorage.getItem('backupSettings') || '{}');
+      if (!settings.enabled || !settings.interval) return;
+
+      const lastBackup = parseInt(localStorage.getItem('lastBackupTime') || '0');
+      const now = Date.now();
+      const intervalMs = settings.interval * 60 * 60 * 1000;
+
+      if (now - lastBackup >= intervalMs) {
+        runBackup();
+      }
+    }, 60000); // Checa a cada minuto
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [exportAllData]);
+
+  return null;
 };

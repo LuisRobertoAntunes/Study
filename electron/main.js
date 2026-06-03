@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu } = require("electron");
+const { app, BrowserWindow, ipcMain, Menu, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const fsp = fs.promises;
@@ -131,10 +131,75 @@ function createWindow() {
 
   mainWindow.loadURL(startURL);
 
+  mainWindow.on("close", (e) => {
+    if (mainWindow) {
+      e.preventDefault();
+      mainWindow.webContents.send('app-closing');
+    }
+  });
+
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
 }
+
+ipcMain.handle('select-folder', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory']
+  });
+  if (result.canceled) return null;
+  return result.filePaths[0];
+});
+
+ipcMain.handle('save-backup', async (event, { data, folderPath, fileName }) => {
+  try {
+    if (!fs.existsSync(folderPath)) {
+      await fsp.mkdir(folderPath, { recursive: true });
+    }
+    const filePath = path.join(folderPath, fileName);
+    await fsp.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
+    return { success: true, filePath };
+  } catch (error) {
+    console.error('Error saving backup:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-backups', async (event, folderPath) => {
+  try {
+    if (!fs.existsSync(folderPath)) return [];
+    const files = await fsp.readdir(folderPath);
+    const backupFiles = files
+      .filter(f => f.startsWith('backup-') && f.endsWith('.json'))
+      .map(f => ({
+        name: f,
+        path: path.join(folderPath, f),
+        mtime: fs.statSync(path.join(folderPath, f)).mtime
+      }))
+      .sort((a, b) => b.mtime - a.mtime);
+    return backupFiles;
+  } catch (error) {
+    console.error('Error getting backups:', error);
+    return [];
+  }
+});
+
+ipcMain.handle('delete-backup', async (event, filePath) => {
+  try {
+    await fsp.unlink(filePath);
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting backup:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.on('backup-complete', () => {
+  mainWindow = null;
+  if (process.platform !== "darwin") {
+    app.quit();
+  }
+});
 
 app.whenReady().then(async () => {
   const dataDir = path.join(app.getPath("userData"), "data");
