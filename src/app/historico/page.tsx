@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useData, StudyRecord } from '../../context/DataContext';
-import { BsPlusCircleFill, BsFunnel, BsPencilSquare, BsTrash } from 'react-icons/bs';
+import { BsPlusCircleFill, BsFunnel, BsPencilSquare, BsTrash, BsChatTextFill } from 'react-icons/bs';
 import StudyRegisterModal from '../../components/StudyRegisterModal';
 import FilterModal from '../../components/FilterModal';
 import PlanSelector from '../../components/PlanSelector';
@@ -74,6 +74,7 @@ const HistoricoPage = () => {
   const [editingRecord, setEditingRecord] = useState<StudyRecord | null>(null);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false); // Estado para o modal de confirmação
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null); // Estado para o ID do registro a ser excluído
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
 
   // Estado para os filtros - CORRIGIDO para aceitar arrays e datas
   const [filters, setFilters] = useState<Filters>({
@@ -370,6 +371,23 @@ const HistoricoPage = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex justify-end items-center space-x-4">
+                              {record.notes && (
+                                <div className="relative">
+                                  <button
+                                    onClick={() => setActiveCommentId(activeCommentId === record.id ? null : record.id)}
+                                    title="Comentários"
+                                    className="flex items-center justify-center p-3 bg-gray-500 text-white rounded-full shadow-md hover:bg-gray-600 transition-colors"
+                                  >
+                                    <BsChatTextFill className="text-lg" />
+                                  </button>
+                                  {activeCommentId === record.id && (
+                                    <div className="absolute bottom-full right-0 mb-2 w-64 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-[100] p-4 text-left">
+                                      <p className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap font-normal">{record.notes}</p>
+                                      <div className="absolute bottom-[-8px] right-4 w-4 h-4 bg-white dark:bg-gray-700 border-b border-r border-gray-300 dark:border-gray-600 rotate-45"></div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                               <button onClick={() => handleEditClick(record)} className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300" title="Editar">
                                 <BsPencilSquare size={18} />
                               </button>
