@@ -140,6 +140,13 @@ export interface ReminderNote {
   completed: boolean;
 }
 
+export interface PlanMetadata {
+  concurso?: string;
+  data_prova?: string;
+  banca?: string;
+  nota_corte_alvo?: number;
+}
+
 export interface TopicPerformanceMetrics {
   subjectId: string; // Adicionado para referência estável
   subject: string;
@@ -165,8 +172,19 @@ export interface StudySession {
 }
 
 export interface Stats {
+  averageStudyTimePerPlannedDay: number;
+  plannedStudyDays: number;
   totalCorrectQuestions: number;
   totalQuestions: number;
+  studyTotalCorrectQuestions: number;
+  studyTotalQuestions: number;
+  simuladoTotalCorrectQuestions: number;
+  simuladoTotalQuestions: number;
+  overallStudyPerformance: number;
+  overallSimuladoPerformance: number;
+  performanceGap: number;
+  planMetadata: PlanMetadata | null;
+  simuladoHistory: { date: string; performance: number }[];
   dailyStudyTime: { [date: string]: number };
   dailySubjectStudyTime: { [date: string]: { [subject: string]: number } };
   totalStudyTime: number;
@@ -200,6 +218,7 @@ export interface Stats {
 
 const calculateStats = async (
   studyRecords: StudyRecord[],
+  simuladoRecords: SimuladoRecord[],
   selectedDataFile: string,
   activeFilters: Filters,
   studyPlans: any[],
@@ -210,6 +229,12 @@ const calculateStats = async (
 ): Promise<Stats> => {
   let totalCorrectQuestions = 0;
   let totalQuestions = 0;
+  let studyTotalCorrectQuestions = 0;
+  let studyTotalQuestions = 0;
+  let simuladoTotalCorrectQuestions = 0;
+  let simuladoTotalQuestions = 0;
+  let simuladoHistory: { date: string; performance: number }[] = [];
+  let planMetadata: PlanMetadata | null = null;
   const dailyStudyTime: { [date: string]: number } = {};
   const dailySubjectStudyTime: { [date: string]: { [subject: string]: number } } = {};
   let totalStudyTime = 0;
@@ -490,8 +515,51 @@ const calculateStats = async (
     completedTopics += counts.completed;
   });
 
+  studyTotalCorrectQuestions = totalCorrectQuestions;
+  studyTotalQuestions = totalQuestions;
+
+  const overallStudyPerformance = studyTotalQuestions > 0 ? (studyTotalCorrectQuestions / studyTotalQuestions) * 100 : 0;
+  simuladoHistory = simuladoRecords.map(simulado => {
+  const totalQuestions = simulado.subjects.reduce(
+    (sum, subject) => sum + (Number(subject.totalQuestions) || 0),
+    0
+  );
+
+  const correctQuestions = simulado.subjects.reduce(
+    (sum, subject) => sum + (Number(subject.correct) || 0),
+    0
+  );
+
+  return {
+  date: simulado.date,
+  performance:
+    totalQuestions > 0
+      ? Math.round((correctQuestions / totalQuestions) * 100)
+      : 0,
+};
+});
+  simuladoRecords.forEach(simulado => {
+  const totalQuestions = simulado.subjects.reduce(
+    (sum, subject) => sum + (Number(subject.totalQuestions) || 0),
+    0
+  );
+
+  const correctQuestions = simulado.subjects.reduce(
+    (sum, subject) => sum + (Number(subject.correct) || 0),
+    0
+  );
+
+  simuladoTotalQuestions += totalQuestions;
+  simuladoTotalCorrectQuestions += correctQuestions;
+});
+  const overallSimuladoPerformance = simuladoTotalQuestions > 0 ? (simuladoTotalCorrectQuestions / simuladoTotalQuestions) * 100 : 0;
+  const performanceGap = overallSimuladoPerformance - overallStudyPerformance;
+
   let totalDaysSinceFirstRecord = 0, failedStudyDays = 0, studyConsistencyPercentage = 0;
   const allStudiedDays = new Set(studyRecords.map(r => r.date));
+  
+  let plannedStudyDays = 0;
+  let averageStudyTimePerPlannedDay = 0;
 
   if (allStudiedDays.size > 0) {
     const sortedDates = Array.from(allStudiedDays).map(d => new Date(d)).sort((a, b) => a.getTime() - b.getTime());
@@ -511,14 +579,28 @@ const calculateStats = async (
         if (studyDayNums.has(d.getDay()) && !allStudiedDays.has(dateStr)) missedStudyDays++;
       }
       failedStudyDays = missedStudyDays;
-      if (totalDaysSinceFirstRecord > 0) {
-        const totalScheduledDays = Array.from({ length: totalDaysSinceFirstRecord }, (_, i) => {
-          const d = new Date(firstDay); d.setDate(d.getDate() + i); return d;
-        }).filter(d => studyDayNums.has(d.getDay())).length;
-        studyConsistencyPercentage = totalScheduledDays > 0 ? (allStudiedDays.size / totalScheduledDays) * 100 : 100;
+     if (totalDaysSinceFirstRecord > 0) {
+        const plannedStudyDays = Array.from(
+          { length: totalDaysSinceFirstRecord },
+            (_, i) => {
+               const d = new Date(firstDay);
+                d.setDate(d.getDate() + i);
+                return d;
+            }
+        ).filter(d => studyDayNums.has(d.getDay())).length;
+
+  averageStudyTimePerPlannedDay =
+    plannedStudyDays > 0
+      ? totalStudyTime / plannedStudyDays
+      : 0;
+
+  studyConsistencyPercentage =
+    plannedStudyDays > 0
+      ? (allStudiedDays.size / plannedStudyDays) * 100
+      : 100;
       }
+     }
     }
-  }
 
   const dates = studyRecords.map(r => new Date(r.date));
   const firstStudyDate = dates.length > 0 ? new Date(Math.min.apply(null, dates.map(d => d.getTime()))) : null;
@@ -611,17 +693,50 @@ const calculateStats = async (
     const percentualAcerto = total > 0 ? (acertos / total) * 100 : 0;
     return { id: subject.id, name: subject.subject, acertos, erros, naoFeitas, total, percentualAcerto, children: children.length > 0 ? children : undefined };
   });
-
+  
   return {
-    totalCorrectQuestions, totalQuestions, dailyStudyTime, dailySubjectStudyTime, totalStudyTime,
-    uniqueStudyDays: uniqueDays.size, totalPagesRead, pagesPerHour: totalStudyTime > 0 ? (totalPagesRead / (totalStudyTime / 3600000)) : 0,
-    totalVideoTime, totalDaysSinceFirstRecord, failedStudyDays, studyConsistencyPercentage, consecutiveDays,
-    consistencyData: consistencyDaysData, consistencyStartDate: consistencyStartDate.toISOString(),
-    consistencyEndDate: consistencyEndDate.toISOString(), isConsistencyPrevDisabled, isConsistencyNextDisabled,
-    totalTopics, completedTopics, pendingTopics: totalTopics - completedTopics,
+    totalCorrectQuestions,
+    totalQuestions,
+    studyTotalCorrectQuestions,
+    studyTotalQuestions,
+    simuladoTotalCorrectQuestions,
+    simuladoTotalQuestions,
+    overallStudyPerformance,
+    overallSimuladoPerformance,
+    performanceGap,
+    planMetadata,
+    simuladoHistory,
+    dailyStudyTime,
+    dailySubjectStudyTime,
+    totalStudyTime,
+    uniqueStudyDays: uniqueDays.size,
+    plannedStudyDays,
+    averageStudyTimePerPlannedDay,
+    totalPagesRead,
+    pagesPerHour: totalStudyTime > 0 ? (totalPagesRead / (totalStudyTime / 3600000)) : 0,
+    totalVideoTime,
+    totalDaysSinceFirstRecord,
+    failedStudyDays,
+    studyConsistencyPercentage,
+    consecutiveDays,
+    consistencyData: consistencyDaysData,
+    consistencyStartDate: consistencyStartDate.toISOString(),
+    consistencyEndDate: consistencyEndDate.toISOString(),
+    isConsistencyPrevDisabled,
+    isConsistencyNextDisabled,
+    totalTopics,
+    completedTopics,
+    pendingTopics: totalTopics - completedTopics,
     overallEditalProgress: totalTopics > 0 ? (completedTopics / totalTopics) * 100 : 0,
-    dailyQuestionStats, dailyStudyHours, subjectStudyHours, categoryStudyHours, subjectPerformance,
-    topicPerformance: hierarchicalTopicPerformance, editalData, weeklyHours, weeklyQuestions,
+    dailyQuestionStats,
+    dailyStudyHours,
+    subjectStudyHours,
+    categoryStudyHours,
+    subjectPerformance,
+    topicPerformance: hierarchicalTopicPerformance,
+    editalData,
+    weeklyHours,
+    weeklyQuestions,
   };
 };
 
@@ -828,7 +943,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
   const calculateProgressValues = (currentStudyRecords: StudyRecord[], currentStudyCycle: StudySession[] | null) => {
     if (!currentStudyCycle || currentStudyCycle.length === 0) {
-      return { numCompletedCycles: 0, progressInCurrentCycle: 0, newSessionProgressMap: {}, totalCycleDuration: 0 };
+      return { numCompletedCycles: 0, progressInCurrentCycle: 0, newSessionProgressMap: {}, totalCycleDuration: 0 }; 
     }
 
     let totalProgressMinutes = 0;
@@ -877,8 +992,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             if (currentSessionProgress < session.duration) {
               const remainingCapacity = session.duration - currentSessionProgress;
               const amountToDistribute = Math.min(remainingTimeToDistribute, remainingCapacity);
-
-              newSessionProgressMap[session.id as string] += amountToDistribute;
+              
+              newSessionProgressMap[session.id as string] = (newSessionProgressMap[session.id as string] || 0) + amountToDistribute;
               remainingTimeToDistribute -= amountToDistribute;
 
               if (remainingTimeToDistribute <= 0) {
@@ -926,14 +1041,48 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const [cycleJustCompleted, setCycleJustCompleted] = useState(false);
   const { showNotification } = useNotification();
   const [stats, setStats] = useState<Stats>({
-    totalCorrectQuestions: 0, totalQuestions: 0, dailyStudyTime: {}, dailySubjectStudyTime: {},
-    totalStudyTime: 0, uniqueStudyDays: 0, totalPagesRead: 0, pagesPerHour: 0, totalVideoTime: 0,
-    totalDaysSinceFirstRecord: 0, failedStudyDays: 0, studyConsistencyPercentage: 0, totalTopics: 0,
-    completedTopics: 0, pendingTopics: 0, overallEditalProgress: 0, dailyQuestionStats: {},
-    dailyStudyHours: {}, subjectStudyHours: {}, categoryStudyHours: {}, subjectPerformance: {},
-    topicPerformance: [], editalData: [], consecutiveDays: 0, consistencyData: [],
-    consistencyStartDate: null, consistencyEndDate: null, isConsistencyPrevDisabled: true,
-    isConsistencyNextDisabled: true, weeklyHours: 0, weeklyQuestions: 0,
+    averageStudyTimePerPlannedDay: 0,
+    plannedStudyDays: 0,
+    totalCorrectQuestions: 0,
+    totalQuestions: 0,
+    studyTotalCorrectQuestions: 0,
+    studyTotalQuestions: 0,
+    simuladoTotalCorrectQuestions: 0,
+    simuladoTotalQuestions: 0,
+    overallStudyPerformance: 0,
+    overallSimuladoPerformance: 0,
+    performanceGap: 0,
+    planMetadata: null,
+    simuladoHistory: [],
+    dailyStudyTime: {},
+    dailySubjectStudyTime: {},
+    totalStudyTime: 0,
+    uniqueStudyDays: 0,
+    totalPagesRead: 0,
+    pagesPerHour: 0,
+    totalVideoTime: 0,
+    totalDaysSinceFirstRecord: 0,
+    failedStudyDays: 0,
+    studyConsistencyPercentage: 0,
+    totalTopics: 0,
+    completedTopics: 0,
+    pendingTopics: 0,
+    overallEditalProgress: 0,
+    dailyQuestionStats: {},
+    dailyStudyHours: {},
+    subjectStudyHours: {},
+    categoryStudyHours: {},
+    subjectPerformance: {},
+    topicPerformance: [],
+    editalData: [],
+    consecutiveDays: 0,
+    consistencyData: [],
+    consistencyStartDate: null,
+    consistencyEndDate: null,
+    isConsistencyPrevDisabled: true,
+    isConsistencyNextDisabled: true,
+    weeklyHours: 0,
+    weeklyQuestions: 0,
   });
 
   useEffect(() => {
@@ -1102,12 +1251,12 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     async function updateStats() {
       if (studyPlans.length > 0 && availablePlans.length > 0 && selectedDataFile) {
-        const newStats = await calculateStats(studyRecords, selectedDataFile, activeFilters, studyPlans, availablePlans, consistencyOffset, studyDays, studyCycle);
+        const newStats = await calculateStats(studyRecords, simuladoRecords, selectedDataFile, activeFilters, studyPlans, availablePlans, consistencyOffset, studyDays, studyCycle);
         setStats(newStats);
       }
     }
     updateStats();
-  }, [studyRecords, selectedDataFile, activeFilters, studyPlans, availablePlans, consistencyOffset, studyDays, studyCycle]);
+  }, [studyRecords, simuladoRecords, selectedDataFile, activeFilters, studyPlans, availablePlans, consistencyOffset, studyDays, studyCycle]);
 
 
 
@@ -1702,15 +1851,29 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [selectedDataFile, showNotification, stats.editalData]);
 
-
+// Ficar de olho nisso aqui 
 
   const exportAllData = useCallback(async () => {
     const serverData = await exportFullBackupAction();
-    const clientData = {
-      version: 3,
-      selectedDataFile, studyCycle, sessionProgressMap, completedCycles,
-      currentProgressMinutes, studyHours, weeklyQuestionsGoal, studyDays, reminderNotes,
-    };
+    const normalizedSessionProgressMap = Object.fromEntries(
+  Object.entries(sessionProgressMap).map(([key, value]) => [
+    key,
+    Math.round(Number(value))
+  ])
+);
+
+const clientData = {
+  version: 3,
+  selectedDataFile,
+  studyCycle,
+  sessionProgressMap: normalizedSessionProgressMap,
+  completedCycles,
+  currentProgressMinutes: Math.round(currentProgressMinutes),
+  studyHours,
+  weeklyQuestionsGoal,
+  studyDays,
+  reminderNotes,
+};
     return { ...serverData, clientData };
   }, [
     selectedDataFile, studyCycle, sessionProgressMap, completedCycles,

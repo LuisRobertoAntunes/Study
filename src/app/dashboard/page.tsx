@@ -251,33 +251,40 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full">
         {/* Card: Tempo de Estudo */}
-        <div className="relative bg-blue-500 shadow-lg rounded-xl p-6 flex items-center space-x-6 transition-all duration-300 hover:shadow-xl hover:scale-105 overflow-hidden group">
-          <span className="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-gold-300 to-transparent opacity-80 transform -skew-x-30 transition-all duration-700 ease-in-out group-hover:left-[100%]"></span>
-          <div className="relative bg-white dark:bg-gray-700 p-4 rounded-full shadow-md dark:shadow-lg">
-            <FaClock className="text-3xl text-gold-500" />
-          </div>
-          <div className="relative">
-            <h2 className="text-lg font-semibold text-white">Tempo de Estudo</h2>
-            <p className="text-3xl font-bold text-white">{formatTime(stats.totalStudyTime)}</p>
-          </div>
-        </div>
+<div className="relative bg-blue-500 shadow-lg rounded-xl px-6 py-[1.875rem] flex items-center justify-center gap-4 transition-all duration-300 hover:shadow-xl hover:scale-105 overflow-hidden group">
+  <span className="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-gold-300 to-transparent opacity-80 transform -skew-x-30 transition-all duration-700 ease-in-out group-hover:left-[100%]"></span>
+
+  <div className="bg-white dark:bg-gray-700 p-4 rounded-full shadow-md flex-shrink-0">
+    <FaClock className="text-3xl text-gold-500" />
+  </div>
+
+  <div className="relative flex flex-col justify-center">
+    <h2 className="text-lg font-semibold text-white">Tempo de Estudo</h2>
+    <p className="text-3xl font-bold text-white whitespace-nowrap leading-none">
+      {formatTime(stats.totalStudyTime)}
+    </p>
+  </div>
+</div>
+
 
         {/* Card: Média Diária */}
-        <div className="relative bg-blue-500 shadow-lg rounded-xl p-6 flex items-center space-x-6 transition-all duration-300 hover:shadow-xl hover:scale-105 overflow-hidden group">
-          <span className="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-gold-300 to-transparent opacity-80 transform -skew-x-30 transition-all duration-700 ease-in-out group-hover:left-[100%]"></span>
-          <div className="relative bg-white dark:bg-gray-700 p-4 rounded-full shadow-md dark:shadow-lg">
+        <div className="relative bg-blue-500 shadow-lg rounded-xl p-6 flex items-center justify-center gap-4 transition-all duration-300 hover:shadow-xl hover:scale-105 overflow-hidden group">
+  <span className="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-gold-300 to-transparent opacity-80 transform -skew-x-30 transition-all duration-700 ease-in-out group-hover:left-[100%]"></span>
+<div className="relative bg-white dark:bg-gray-700 p-4 rounded-full shadow-md dark:shadow-lg">
             <FaCalendarDay className="text-3xl text-gold-500" />
           </div>
-          <div className="relative">
+          <div className="relative flex flex-col justify-center">
             <h2 className="text-lg font-semibold text-white">Média Diária</h2>
-            <p className="text-3xl font-bold text-white">{formatTime(stats.totalStudyTime / stats.uniqueStudyDays || 0)}</p>
+            <p className="text-3xl font-bold text-white whitespace-nowrap leading-none">
+              {formatTime(stats.totalStudyTime / stats.uniqueStudyDays || 0)}
+            </p>
           </div>
         </div>
 
         {/* Card: Desempenho */}
-        <div className="relative bg-gold-500 shadow-lg rounded-xl p-6 flex items-center space-x-6 transition-all duration-300 hover:shadow-xl hover:scale-105 overflow-hidden group">
-          <span className="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-gold-300 to-transparent opacity-80 transform -skew-x-30 transition-all duration-700 ease-in-out group-hover:left-[100%]"></span>
-          <div className="relative bg-white dark:bg-gray-700 p-4 rounded-full shadow-md dark:shadow-lg">
+        <div className="relative bg-blue-500 shadow-lg rounded-xl p-6 flex items-center justify-center gap-4 transition-all duration-300 hover:shadow-xl hover:scale-105 overflow-hidden group">
+  <span className="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-gold-300 to-transparent opacity-80 transform -skew-x-30 transition-all duration-700 ease-in-out group-hover:left-[100%]"></span>
+<div className="relative bg-white dark:bg-gray-700 p-4 rounded-full shadow-md dark:shadow-lg">
             <FaBullseye className="text-3xl text-gold-500" />
           </div>
           <div className="relative">
@@ -287,7 +294,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Card: Progresso no Edital */}
-        <div className="relative bg-gold-500 shadow-lg rounded-xl p-6 flex items-center space-x-6 transition-all duration-300 hover:shadow-xl hover:scale-105 overflow-hidden group">
+        <div className="relative bg-blue-500 shadow-lg rounded-xl p-6 flex items-center justify-center gap-4 transition-all duration-300 hover:shadow-xl hover:scale-105 overflow-hidden group">
           <span className="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-gold-300 to-transparent opacity-80 transform -skew-x-30 transition-all duration-700 ease-in-out group-hover:left-[100%]"></span>
           <div className="relative bg-white dark:bg-gray-700 p-4 rounded-full shadow-md dark:shadow-lg">
             <FaFileAlt className="text-3xl text-gold-500" />
@@ -375,15 +382,16 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 w-full mt-6">
-        <div className="flex flex-col gap-6 md:col-span-3">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-2 w-full mt-6">
+        <div className="flex flex-col gap-2 md:col-span-3">
           <RevisionsSection />
           <PlanningSection />
           <LastActivitiesSection />
         </div>
-        <div className="flex flex-col gap-6 md:col-span-1">
+        <div className="flex flex-col gap-6 md:col-span-0">  
+          <RemindersSection />  
           <DailyStudySection dailySubjectStudyTime={stats.dailySubjectStudyTime} subjectColors={stats.editalData} />
-          <RemindersSection />
+          
         </div>
       </div>
 

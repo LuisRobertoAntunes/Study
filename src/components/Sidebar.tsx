@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSidebar } from '../context/SidebarContext';
-import { FaHome, FaClipboardList, FaBook, FaFileAlt, FaDatabase, FaRedoAlt, FaHistory, FaChartBar, FaCalendarAlt, FaGraduationCap, FaHeart } from 'react-icons/fa';
+import { FaHome, FaClipboardList, FaBook, FaFileAlt, FaDatabase, FaRedoAlt, FaHistory, FaChartBar, FaCalendarAlt, FaGraduationCap } from 'react-icons/fa';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { BsList } from 'react-icons/bs';
@@ -14,7 +14,7 @@ import { FaSignOutAlt, FaExclamationTriangle } from 'react-icons/fa';
 
 
 const Sidebar = () => {
-  const [isSignOutModalOpen, setIsSignOutModalOpen] = React.useState(false);
+  const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
   const { isSidebarExpanded, toggleSidebar } = useSidebar();
   const pathname = usePathname();
   const { theme } = useTheme();

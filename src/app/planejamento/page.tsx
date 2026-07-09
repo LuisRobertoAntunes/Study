@@ -52,11 +52,11 @@ const DonutChart = ({ cycle, size = 300, remainingMinutes, hoveredSession, setHo
   const progressCircumference = 2 * Math.PI * progressRingRadius;
 
   const formatMinutesToHoursMinutes = (minutes: number) => {
-    if (minutes <= 0) return '0h00min';
+  if (minutes <= 0) return '0h00min';
     const h = Math.floor(minutes / 60);
     const m = Math.round(minutes % 60);
-    return `${h}h${String(m).padStart(2, '0')}min`;
-  };
+  return `${h}h${String(m).padStart(2, '0')}min`;
+};
 
   const segments = useMemo(() => {
     if (!cycle || cycle.length === 0) return [];

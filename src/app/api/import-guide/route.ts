@@ -99,6 +99,35 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
+  // ===============================
+// 📦 IMPORTAÇÃO VIA JSON (NOVO)
+// ===============================
+if (
+  guideUrl.endsWith('.json') ||
+  guideUrl.includes('raw.githubusercontent.com')
+) {
+  const response = await fetch(guideUrl);
+
+  if (!response.ok) {
+    return NextResponse.json(
+      { error: 'Falha ao baixar JSON do guia.' },
+      { status: 400 }
+    );
+  }
+
+  const planData = await response.json();
+
+  const userDir = await getImportUserDataDirectory();
+  const fileName = `${slugify(planData.name)}.json`;
+  const filePath = path.join(userDir, fileName);
+
+  await fs.writeFile(filePath, JSON.stringify(planData, null, 2), 'utf-8');
+
+  return NextResponse.json({
+    message: 'Importação via JSON realizada com sucesso!',
+    plan: planData,
+  });
+}
 
   let browser;
 
