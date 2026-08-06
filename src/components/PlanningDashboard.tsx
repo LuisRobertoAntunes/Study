@@ -24,7 +24,9 @@ const PlanningDashboard: React.FC<PlanningDashboardProps> = ({ onOpenModal }) =>
   };
 
   const totalCycleDuration = studyCycle?.reduce((sum, session) => sum + session.duration, 0) || 1;
-  const weeklyProgressPercent = stats.weeklyHours > 0 ? (currentProgressMinutes / (stats.weeklyHours * 60)) * 100 : 0;
+  const weeklyHoursValue = parseInt(studyHours, 10) || 0;
+  const weeklyHoursInMinutes = weeklyHoursValue * 60;
+  const weeklyProgressPercent = weeklyHoursInMinutes > 0 ? (currentProgressMinutes / weeklyHoursInMinutes) * 100 : 0;
 
   const handleResetCycle = () => {
     if (window.confirm('Tem certeza que deseja remover o ciclo de estudos atual?')) {
@@ -77,7 +79,7 @@ const PlanningDashboard: React.FC<PlanningDashboardProps> = ({ onOpenModal }) =>
         </div>
         <div className="md:col-span-3 bg-white p-6 rounded-lg shadow-md">
           <h2 className="text-xl font-bold text-gray-700 mb-2">Progresso</h2>
-          <p className="text-left text-gray-600 mb-2">{currentProgressMinutes} / {stats.weeklyHours}h</p>
+          <p className="text-left text-gray-600 mb-2">{currentProgressMinutes} / {weeklyHoursInMinutes}min ({weeklyHoursValue}h)</p>
           <div className="w-full bg-gray-200 rounded-full h-6">
             <div className="bg-blue-600 h-6 rounded-full" style={{ width: `${weeklyProgressPercent}%` }}></div>
           </div>
@@ -88,7 +90,7 @@ const PlanningDashboard: React.FC<PlanningDashboardProps> = ({ onOpenModal }) =>
             <DonutChart 
               cycle={studyCycle || []} 
               size={300} 
-              studyHours={stats.weeklyHours}
+              studyHours={studyHours}
               hoveredSession={hoveredSession}
               setHoveredSession={setHoveredSession}
               sessionProgressMap={sessionProgressMap}

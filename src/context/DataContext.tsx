@@ -251,15 +251,17 @@ const calculateStats = async (
   let weeklyHours = 0;
   let weeklyQuestions = 0;
   const todayForWeek = new Date();
-  const dayOfWeek = todayForWeek.getDay();
-  const firstDayOfWeek = new Date(todayForWeek);
-  const diff = todayForWeek.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-  firstDayOfWeek.setDate(diff);
-  firstDayOfWeek.setHours(0, 0, 0, 0);
+  // Normalizar para o início do dia em UTC para consistência com os registros
+  const todayUTC = new Date(Date.UTC(todayForWeek.getFullYear(), todayForWeek.getMonth(), todayForWeek.getDate()));
+  const dayOfWeek = todayUTC.getUTCDay();
+  const firstDayOfWeek = new Date(todayUTC);
+  const diff = todayUTC.getUTCDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+  firstDayOfWeek.setUTCDate(diff);
+  firstDayOfWeek.setUTCHours(0, 0, 0, 0);
 
   const lastDayOfWeek = new Date(firstDayOfWeek);
-  lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
-  lastDayOfWeek.setHours(23, 59, 59, 999);
+  lastDayOfWeek.setUTCDate(firstDayOfWeek.getUTCDate() + 6);
+  lastDayOfWeek.setUTCHours(23, 59, 59, 999);
 
   let editalData: EditalSubject[] = [];
   const currentPlanIndex = availablePlans.indexOf(selectedDataFile);
@@ -340,7 +342,8 @@ const calculateStats = async (
 
   filteredStudyRecords.forEach(record => {
     const [year, month, day] = record.date.split('-').map(Number);
-    const recordDate = new Date(year, month - 1, day);
+    // Usar Date.UTC para evitar problemas de fuso horário local na comparação semanal
+    const recordDate = new Date(Date.UTC(year, month - 1, day));
     const date = record.date;
     uniqueDays.add(date);
 

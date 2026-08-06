@@ -308,7 +308,8 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/;
+    // Regex atualizada para permitir horas acima de 23 (ex: 99:59:59)
+    const timeRegex = /^([0-9]{1,3}):[0-5][0-9]:[0-5][0-9]$/;
     if (!selectedSubject) newErrors.subject = 'Selecione uma disciplina';
     if (!selectedCategory) newErrors.category = 'Selecione uma categoria';
     if (!studyTime || studyTime === '00:00:00') newErrors.studyTime = 'Informe o tempo de estudo';
