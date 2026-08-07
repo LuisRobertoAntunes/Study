@@ -282,6 +282,7 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
         setQuestions([{ correct: correct, incorrect: total - correct }]);
         setPages(initialRecord.pages && initialRecord.pages.length > 0 ? initialRecord.pages : [{ start: 0, end: 0 }]);
         setVideos(initialRecord.videos && initialRecord.videos.length > 0 ? initialRecord.videos : [{ title: '', start: '00:00:00', end: '00:00:00' }]);
+        setMaterial(initialRecord.material || '');
         setComments(initialRecord.notes || '');
       } else if (initialTopicData) {
         setSelectedSubject(initialTopicData.subject);
@@ -364,6 +365,7 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
       countInPlanning: countInPlanning,
       pages: pages.filter(p => p.start > 0 || p.end > 0),
       videos: videos.filter(v => v.title),
+      material: material,
     };
     onSave(studyRecord);
     onClose();

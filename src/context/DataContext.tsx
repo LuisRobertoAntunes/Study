@@ -62,6 +62,7 @@ export interface StudyRecord {
   questions?: { correct: number; total: number };
   pages: { start: number; end: number }[];
   videos: { title: string; start: string; end: string }[];
+  material?: string;
   notes: string;
   category: string;
   reviewPeriods?: string[];
@@ -1017,6 +1018,11 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     if (fileName !== selectedDataFile) {
       setIsPlanDataLoaded(false);
       _setSelectedDataFile(fileName);
+      if (fileName) {
+        localStorage.setItem('selectedDataFile', fileName);
+      } else {
+        localStorage.removeItem('selectedDataFile');
+      }
     }
   }, [selectedDataFile]);
 

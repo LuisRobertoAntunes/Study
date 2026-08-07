@@ -359,6 +359,9 @@ const HistoricoPage = () => {
                           >
                             <div className="text-sm font-medium text-gray-900 dark:text-gray-100 max-w-xs truncate">{record.subject}</div>
                             <div className="text-sm text-gray-500 dark:text-gray-400 max-w-xs whitespace-normal">{record.topic}</div>
+                            {record.material && (
+                              <div className="text-xs text-gray-400 dark:text-gray-500 max-w-xs whitespace-normal italic">{record.material}</div>
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-300">{formatTime(record.studyTime)}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-gray-300">
