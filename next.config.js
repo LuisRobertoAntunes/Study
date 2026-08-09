@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  env: {
+    NEXT_PUBLIC_APP_VERSION: require('./package.json').version,
+  },
   experimental: {
     // Desativa o Turbopack explicitamente
     // Isso é necessário para resolver problemas de compatibilidade com certas bibliotecas

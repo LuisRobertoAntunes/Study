@@ -11,12 +11,14 @@ export interface StudyRecord {
   id: string;
   date: string;
   subjectId: string; // Novo campo para o ID da matéria
+  topicId?: string; // ID estável do tópico
   subject: string; // Manter por enquanto para compatibilidade e exibição
   topic: string;
   studyTime: number;
-  questions: { correct: number; total: number };
+  questions?: { correct: number; total: number };
   pages: { start: number; end: number }[];
   videos: { title: string; start: string; end: string }[];
+  material?: string;
   notes: string;
   category: string;
   reviewPeriods?: string[];
@@ -64,6 +66,9 @@ export interface PlanData {
   observations: string;
   cargo?: string;
   edital?: string;
+  banca?: string;
+  data_prova?: string;
+  nota_corte_alvo?: number;
   iconUrl?: string;
   subjects: Subject[];
   bancaTopicWeights?: {
@@ -582,7 +587,7 @@ export async function renameSubjectAction(
   fileName: string,
   subjectId: string,
   newSubjectName: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; oldSubjectName?: string }> {
   if (!fileName || !subjectId || !newSubjectName) {
     return { success: false, error: 'Parâmetros inválidos para renomear matéria.' };
   }
@@ -670,6 +675,15 @@ export async function addOrUpdateSubjectAction(
   if (!fileName || !subjectData || !subjectData.subject) {
     return { success: false, error: 'Parâmetros inválidos.' };
   }
+
+  const ensureTopicIds = (topics: EditalTopic[]): EditalTopic[] => {
+    return topics.map(t => ({
+      ...t,
+      id: t.id || crypto.randomUUID(),
+      sub_topics: t.sub_topics ? ensureTopicIds(t.sub_topics) : t.sub_topics,
+    }));
+  };
+  subjectData = { ...subjectData, topics: ensureTopicIds(subjectData.topics || []) };
 
   const userDir = await getUserDataDirectory();
   const filePath = path.join(userDir, fileName);
@@ -875,10 +889,250 @@ export async function updateAllTopicWeightsAction(
       }
     }
 
+
     await fs.writeFile(filePath, JSON.stringify(planData, null, 2), 'utf-8');
     return { success: true };
   } catch (error: any) {
     console.error('Erro ao atualizar todos os pesos de tópicos:', error);
     return { success: false, error: error.message || 'Falha ao atualizar pesos de tópicos.' };
+  }
+}
+
+// --- Sincronização de Aproveitamento entre Planos ---
+
+function normalizeTopicText(text: string): string {
+  return (text || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
+    .replace(/[.,;:!?()\[\]"'-]/g, '') // remove pontuação comum
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+interface FlatTopic {
+  subjectId: string;
+  subjectName: string;
+  topicId?: string;
+  topicText: string;
+}
+
+function flattenTopics(subjects: Subject[]): FlatTopic[] {
+  const result: FlatTopic[] = [];
+  const walk = (topics: EditalTopic[], subjectId: string, subjectName: string) => {
+    for (const t of topics || []) {
+      result.push({ subjectId, subjectName, topicId: t.id, topicText: t.topic_text });
+      if (t.sub_topics && t.sub_topics.length > 0) {
+        walk(t.sub_topics, subjectId, subjectName);
+      }
+    }
+  };
+  for (const s of subjects || []) {
+    walk(s.topics || [], s.id, s.subject);
+  }
+  return result;
+}
+
+export interface TopicSyncPair {
+  sourceSubjectId: string;
+  sourceSubjectName: string;
+  sourceTopicText: string;
+  targetSubjectId: string;
+  targetSubjectName: string;
+  targetTopicText: string;
+  targetTopicId?: string;
+  recordCount: number;
+  questionsCorrect: number;
+  questionsTotal: number;
+}
+
+export interface UnmatchedTopic {
+  subjectId: string;
+  subjectName: string;
+  topicText: string;
+  recordCount: number;
+}
+
+export interface TopicSyncPreview {
+  success: boolean;
+  error?: string;
+  matched: TopicSyncPair[];
+  unmatchedSource: UnmatchedTopic[]; // tópicos de origem sem correspondência automática
+  availableTargetTopics: { subjectId: string; subjectName: string; topicText: string }[]; // para vínculo manual
+}
+
+export async function getTopicSyncPreview(sourceFileName: string, targetFileName: string): Promise<TopicSyncPreview> {
+  if (!sourceFileName || !targetFileName || sourceFileName === targetFileName) {
+    return { success: false, error: 'Selecione um plano de origem diferente do plano de destino.', matched: [], unmatchedSource: [], availableTargetTopics: [] };
+  }
+  try {
+    const [sourceData, targetData, sourceRecords] = await Promise.all([
+      getJsonContent(sourceFileName),
+      getJsonContent(targetFileName),
+      getStudyRecords(sourceFileName),
+    ]);
+    if (!sourceData || !targetData) {
+      return { success: false, error: 'Não foi possível ler um dos planos.', matched: [], unmatchedSource: [], availableTargetTopics: [] };
+    }
+
+
+    const subjectWordOverlap = (a: string, b: string): number => {
+      const wordsA = new Set(a.split(' ').filter(w => w.length > 2));
+      const wordsB = new Set(b.split(' ').filter(w => w.length > 2));
+      let overlap = 0;
+      for (const w of wordsA) if (wordsB.has(w)) overlap++;
+      return overlap;
+    };
+
+    const sourceFlat = flattenTopics(sourceData.subjects || []);
+    const targetFlat = flattenTopics(targetData.subjects || []);
+    const usedTargetIndexes = new Set<number>();
+
+    const matched: TopicSyncPair[] = [];
+    const unmatchedSource: UnmatchedTopic[] = [];
+
+    for (const sTopic of sourceFlat) {
+      const normSubject = normalizeTopicText(sTopic.subjectName);
+      const normTopic = normalizeTopicText(sTopic.topicText);
+
+      let targetIndex = targetFlat.findIndex((tTopic, idx) =>
+        !usedTargetIndexes.has(idx) &&
+        tTopic.topicId && sTopic.topicId && tTopic.topicId === sTopic.topicId
+      );
+
+      if (targetIndex === -1) {
+        // Casa pelo texto do tópico (a matéria pode ter nome totalmente diferente entre concursos).
+        // Quando há mais de um candidato com o mesmo texto, desempata pela matéria mais parecida.
+        const candidates = targetFlat
+          .map((tTopic, idx) => ({ tTopic, idx }))
+          .filter(({ tTopic, idx }) => !usedTargetIndexes.has(idx) && normalizeTopicText(tTopic.topicText) === normTopic);
+
+        if (candidates.length === 1) {
+          targetIndex = candidates[0].idx;
+        } else if (candidates.length > 1) {
+          candidates.sort((a, b) =>
+            subjectWordOverlap(normalizeTopicText(b.tTopic.subjectName), normSubject) -
+            subjectWordOverlap(normalizeTopicText(a.tTopic.subjectName), normSubject)
+          );
+          targetIndex = candidates[0].idx;
+        }
+      }
+
+      const relatedRecords = sourceRecords.filter(r => r.subjectId === sTopic.subjectId && r.topic === sTopic.topicText);
+      const questionsCorrect = relatedRecords.reduce((sum, r) => sum + (r.questions?.correct || 0), 0);
+      const questionsTotal = relatedRecords.reduce((sum, r) => sum + (r.questions?.total || 0), 0);
+
+      if (targetIndex !== -1) {
+        usedTargetIndexes.add(targetIndex);
+        const tTopic = targetFlat[targetIndex];
+        matched.push({
+          sourceSubjectId: sTopic.subjectId,
+          sourceSubjectName: sTopic.subjectName,
+          sourceTopicText: sTopic.topicText,
+          targetSubjectId: tTopic.subjectId,
+          targetSubjectName: tTopic.subjectName,
+          targetTopicText: tTopic.topicText,
+          targetTopicId: tTopic.topicId,
+          recordCount: relatedRecords.length,
+          questionsCorrect,
+          questionsTotal,
+        });
+      } else if (relatedRecords.length > 0) {
+        // só vale a pena listar como "órfão" se houver algo estudado ali
+        unmatchedSource.push({
+          subjectId: sTopic.subjectId,
+          subjectName: sTopic.subjectName,
+          topicText: sTopic.topicText,
+          recordCount: relatedRecords.length,
+        });
+      }
+    }
+
+    const availableTargetTopics = targetFlat.map(t => ({ subjectId: t.subjectId, subjectName: t.subjectName, topicText: t.topicText }));
+
+    return { success: true, matched, unmatchedSource, availableTargetTopics };
+  } catch (error: any) {
+    console.error('Erro ao gerar preview de sincronização:', error);
+    return { success: false, error: error.message || 'Falha ao comparar os planos.', matched: [], unmatchedSource: [], availableTargetTopics: [] };
+  }
+}
+
+export type SyncScope = 'topics' | 'questions' | 'hours' | 'all';
+
+export async function syncPlanProgress(
+  sourceFileName: string,
+  targetFileName: string,
+  pairs: { sourceSubjectId: string; sourceTopicText: string; targetSubjectId: string; targetSubjectName: string; targetTopicText: string; targetTopicId?: string }[],
+  scope: SyncScope
+): Promise<{ success: boolean; error?: string; syncedRecords: number; syncedTopics: number }> {
+  if (!sourceFileName || !targetFileName || pairs.length === 0) {
+    return { success: false, error: 'Nada para sincronizar.', syncedRecords: 0, syncedTopics: 0 };
+  }
+  try {
+    const dataDir = await getUserDataDirectory();
+    const targetPath = path.join(dataDir, targetFileName);
+
+    const [sourceRecords, targetFileContent] = await Promise.all([
+      getStudyRecords(sourceFileName),
+      fs.readFile(targetPath, 'utf-8'),
+    ]);
+    const targetData: PlanData = JSON.parse(targetFileContent);
+    if (!targetData.records) targetData.records = [];
+
+    let syncedTopics = 0;
+    const newRecords: StudyRecord[] = [];
+
+    for (const pair of pairs) {
+      const related = sourceRecords.filter(r => r.subjectId === pair.sourceSubjectId && r.topic === pair.sourceTopicText);
+      if (related.length === 0) continue;
+      syncedTopics++;
+
+      if (scope === 'hours' || scope === 'all') {
+        // Clona cada sessão individualmente, preservando datas e histórico do que foi estudado.
+        // countInPlanning fica sempre false: essas datas são do plano de origem e não devem
+        // interferir no cálculo de ciclo de estudos nem na constância do plano de destino.
+        for (const r of related) {
+          newRecords.push({
+            ...r,
+            id: crypto.randomUUID(),
+            subjectId: pair.targetSubjectId,
+            topicId: pair.targetTopicId,
+            subject: pair.targetSubjectName,
+            topic: pair.targetTopicText,
+            questions: scope === 'all' ? r.questions : undefined,
+            countInPlanning: false,
+          });
+        }
+      } else {
+        // 'topics' ou 'questions': um único registro-resumo, sem duplicar o histórico de horas/dia
+        const mostRecentDate = related.reduce((latest, r) => (r.date > latest ? r.date : latest), related[0].date);
+        const questionsCorrect = related.reduce((sum, r) => sum + (r.questions?.correct || 0), 0);
+        const questionsTotal = related.reduce((sum, r) => sum + (r.questions?.total || 0), 0);
+
+        newRecords.push({
+          id: crypto.randomUUID(),
+          date: mostRecentDate,
+          subjectId: pair.targetSubjectId,
+          topicId: pair.targetTopicId,
+          subject: pair.targetSubjectName,
+          topic: pair.targetTopicText,
+          studyTime: 0,
+          questions: scope === 'questions' && questionsTotal > 0 ? { correct: questionsCorrect, total: questionsTotal } : undefined,
+          pages: [],
+          videos: [],
+          notes: '',
+          category: 'Sincronizado',
+          teoriaFinalizada: true,
+          countInPlanning: false,
+        });
+      }
+    }
+
+    targetData.records.push(...newRecords);
+    await fs.writeFile(targetPath, JSON.stringify(targetData, null, 2), 'utf-8');
+
+    return { success: true, syncedRecords: newRecords.length, syncedTopics };
+  } catch (error: any) {
+    console.error('Erro ao sincronizar progresso entre planos:', error);
+    return { success: false, error: error.message || 'Falha ao sincronizar.', syncedRecords: 0, syncedTopics: 0 };
   }
 }

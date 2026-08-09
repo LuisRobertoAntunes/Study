@@ -7,6 +7,7 @@ import { FaTrash } from 'react-icons/fa';
 export default function PlanSelector() {
   const { selectedDataFile, setSelectedDataFile, availablePlans, deletePlan } = useData();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isDeselectConfirmModalOpen, setIsDeselectConfirmModalOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -33,7 +34,7 @@ export default function PlanSelector() {
   };
 
   const handleConfirmDeselect = () => {
-    setSelectedDataFile(null); // Deseleciona o plano
+    setSelectedDataFile(''); // Deseleciona o plano
     setIsDeselectConfirmModalOpen(false);
     setIsDropdownOpen(false); // Fecha o dropdown após deselecionar
   };

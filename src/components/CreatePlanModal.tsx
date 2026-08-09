@@ -8,8 +8,8 @@ import { useNotification } from '../context/NotificationContext';
 interface CreatePlanModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (planData: { name: string; observations: string; cargo: string; edital: string; banca?: string; imageFile?: File; existingIconUrl?: string }) => void;
-  initialPlanData?: { name: string; observations: string; cargo?: string; edital?: string; banca?: string; iconUrl?: string; };
+  onSave: (planData: { name: string; observations: string; cargo: string; edital: string; banca?: string; data_prova?: string; nota_corte_alvo?: number; imageFile?: File; existingIconUrl?: string }) => void;
+  initialPlanData?: { name: string; observations: string; cargo?: string; edital?: string; banca?: string; data_prova?: string; nota_corte_alvo?: number; iconUrl?: string; };
   isEditing?: boolean;
 }
 
@@ -20,6 +20,8 @@ interface CreatePlanModalProps {
   const [cargo, setCargo] = useState(initialPlanData?.cargo || '');
   const [edital, setEdital] = useState(initialPlanData?.edital || '');
   const [banca, setBanca] = useState(initialPlanData?.banca || ''); // Novo estado para a banca
+  const [dataProva, setDataProva] = useState(initialPlanData?.data_prova || '');
+  const [notaCorteAlvo, setNotaCorteAlvo] = useState(initialPlanData?.nota_corte_alvo?.toString() || '');
   const [imageFile, setImageFile] = useState<File | undefined>(undefined); // Only set if a new file is selected
   const [previewUrl, setPreviewUrl] = useState<string | null>(initialPlanData?.iconUrl || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -32,6 +34,8 @@ interface CreatePlanModalProps {
       setCargo(initialPlanData.cargo || ''); // Adicionado para garantir que o cargo seja atualizado
       setEdital(initialPlanData.edital || ''); // Adicionado para garantir que o edital seja atualizado
       setBanca(initialPlanData.banca || ''); // Adicionado para garantir que a banca seja atualizada
+      setDataProva(initialPlanData.data_prova || '');
+      setNotaCorteAlvo(initialPlanData.nota_corte_alvo?.toString() || '');
       setPreviewUrl(initialPlanData.iconUrl || null);
       setImageFile(undefined); // Clear any previously selected new image
     } else {
@@ -41,6 +45,8 @@ interface CreatePlanModalProps {
       setCargo(''); // Reset cargo
       setEdital(''); // Reset edital
       setBanca(''); // Reset banca
+      setDataProva('');
+      setNotaCorteAlvo('');
       setPreviewUrl(null);
       setImageFile(undefined);
     }
@@ -77,6 +83,8 @@ interface CreatePlanModalProps {
         cargo,
         edital,
         banca, // Incluindo a banca
+        data_prova: dataProva || undefined,
+        nota_corte_alvo: notaCorteAlvo ? parseFloat(notaCorteAlvo) : undefined,
         imageFile: imageFile,
         existingIconUrl: imageFile ? undefined : initialPlanData?.iconUrl
       });
@@ -173,6 +181,33 @@ interface CreatePlanModalProps {
                   value={banca}
                   onChange={(e) => setBanca(e.target.value)}
                   placeholder="Ex: FGV, Cebraspe"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gold-500 text-gray-900 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:ring-gold-400"
+                />
+              </div>
+
+              <div className="mb-4 grid grid-cols-2 gap-x-4 gap-y-2 items-end">
+                <label htmlFor="dataProva" className="block text-sm font-bold text-gold-800 dark:text-gold-300">
+                  DATA DA PROVA (Opcional)
+                </label>
+                <label htmlFor="notaCorteAlvo" className="block text-sm font-bold text-gold-800 dark:text-gold-300">
+                  NOTA DE CORTE ALVO (Opcional)
+                </label>
+                <input
+                  type="date"
+                  id="dataProva"
+                  value={dataProva}
+                  onChange={(e) => setDataProva(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gold-500 text-gray-900 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:ring-gold-400"
+                />
+                <input
+                  type="number"
+                  id="notaCorteAlvo"
+                  value={notaCorteAlvo}
+                  onChange={(e) => setNotaCorteAlvo(e.target.value)}
+                  placeholder="Ex: 70"
+                  min={0}
+                  max={100}
+                  step={0.1}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gold-500 text-gray-900 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:ring-gold-400"
                 />
               </div>

@@ -1,7 +1,7 @@
 {
   "name": "study",
   "description": "Aplicação open-source e gratuita de planejamento de estudos, projetada para ajudar estudantes e concurseiros a otimizar sua rotina, com foco na democratização do acesso a ferramentas de alta performance.",
-  "version": "1.1.5",
+  "version": "1.1.2",
   "homepage": "https://github.com/LuisRobertoAntunes/Study",
   "author": {
     "name": "LuisRoberto",
@@ -18,12 +18,21 @@
     "dev:electron": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 electron electron/main.js\"",
     "build:electron": "rimraf .next dist puppeteer_data && npx puppeteer browsers install chrome && next build && electron-builder",
     "build:electron:win": "rimraf .next dist puppeteer_data && cross-env PUPPETEER_PLATFORM=win64 npx puppeteer browsers install chrome && next build && electron-builder --win",
-    "build:electron:linux": "rimraf .next dist puppeteer_data && cross-env PUPPETEER_PLATFORM=linux npx puppeteer browsers install chrome && next build && electron-builder --linux"
+    "build:electron:linux": "rimraf .next dist puppeteer_data && cross-env PUPPETEER_PLATFORM=linux npx puppeteer browsers install chrome && next build && electron-builder --linux",
+    "release:win": "rimraf .next dist puppeteer_data && cross-env PUPPETEER_PLATFORM=win64 npx puppeteer browsers install chrome && next build && electron-builder --win --publish always",
+    "release:linux": "rimraf .next dist puppeteer_data && cross-env PUPPETEER_PLATFORM=linux npx puppeteer browsers install chrome && next build && electron-builder --linux --publish always"
   },
   "build": {
     "appId": "com.study.app",
     "productName": "Study",
     "icon": "build/icon.png",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "LuisRobertoAntunes",
+        "repo": "Study"
+      }
+    ],
     "files": [
       "dist/**/*",
       "electron/**/*",
@@ -84,6 +93,7 @@
     "chartjs-plugin-zoom": "^2.2.0",
     "class-variance-authority": "^0.7.1",
     "date-fns": "^4.1.0",
+    "electron-updater": "^6.3.9",
     "geist": "^1.4.2",
     "lucide-react": "^0.539.0",
     "next": "^14.2.32",

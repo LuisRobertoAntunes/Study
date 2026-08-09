@@ -49,6 +49,12 @@ ChartJS.register(
   RadialLinearScale
 );
 
+// Formata "YYYY-MM-DD" como "DD/MM/AAAA" (parse manual, sem passar por new Date/UTC)
+const formatDateBR = (dateStr: string): string => {
+  const [y, m, d] = dateStr.split('-');
+  return `${d}/${m}/${y}`;
+};
+
 export default function Estatisticas() {
   const [isMounted, setIsMounted] = React.useState(false);
   const { 
@@ -70,6 +76,17 @@ export default function Estatisticas() {
   const [subjectSortOrder, setSubjectSortOrder] = React.useState('desc');
   const [activeTab, setActiveTab] = React.useState<'geral' | 'desempenho' | 'evolucao'>('geral');
   const [isDarkMode, setIsDarkMode] = React.useState(false);
+
+  const daysUntilExam = React.useMemo(() => {
+    const dataProva = stats.planMetadata?.data_prova;
+    if (!dataProva) return null;
+    // Parseia "YYYY-MM-DD" como data local (evita bug de fuso horário do new Date(string))
+    const [y, m, d] = dataProva.split('-').map(Number);
+    const examDate = new Date(y, m - 1, d);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Math.ceil((examDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  }, [stats.planMetadata?.data_prova]);
   
 const sortedDailyStudy = React.useMemo(() => {
   const data = stats.dailyStudyTime ?? {};
@@ -307,14 +324,14 @@ if (!isMounted) {
           <div className="space-y-6">
             {/* Metadados do Plano */}
             {stats.planMetadata && (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
                   <span className="text-xs font-bold text-gray-400 uppercase">Concurso</span>
                   <p className="text-lg font-bold truncate">{stats.planMetadata.concurso || '-'}</p>
                 </div>
                 <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
                   <span className="text-xs font-bold text-gray-400 uppercase">Data Prova</span>
-                  <p className="text-lg font-bold text-gold-500">{stats.planMetadata.data_prova || '-'}</p>
+                  <p className="text-lg font-bold text-gold-500">{stats.planMetadata.data_prova ? formatDateBR(stats.planMetadata.data_prova) : '-'}</p>
                 </div>
                 <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
                   <span className="text-xs font-bold text-gray-400 uppercase">Banca</span>
@@ -322,7 +339,28 @@ if (!isMounted) {
                 </div>
                 <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
                   <span className="text-xs font-bold text-gray-400 uppercase">Nota de Corte</span>
-                  <p className="text-lg font-bold text-blue-500">{stats.planMetadata.nota_corte_alvo}%</p>
+                  <p className="text-lg font-bold text-blue-500">{stats.planMetadata.nota_corte_alvo ? `${stats.planMetadata.nota_corte_alvo} pontos` : '-'}</p>
+                </div>
+                <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase whitespace-nowrap tracking-tight block">Desempenho Ponderado</span>
+                  {stats.planMetadata?.nota_corte_alvo ? (
+                    <>
+                      <p className={`text-lg font-bold ${stats.overallSimuladoWeightedPerformance >= stats.planMetadata.nota_corte_alvo ? 'text-green-500' : 'text-red-500'}`}>
+                        {stats.overallSimuladoWeightedPerformance.toFixed(1)} pontos
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {((stats.overallSimuladoWeightedPerformance / stats.planMetadata.nota_corte_alvo) * 100).toFixed(0)}% da meta
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-gray-500 mt-1">Defina a nota de corte alvo em &quot;Editar Plano&quot;.</p>
+                  )}
+                </div>
+                <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+                  <span className="text-xs font-bold text-gray-400 uppercase">Dias para a Prova</span>
+                  <p className={`text-lg font-bold ${daysUntilExam !== null && daysUntilExam < 0 ? 'text-gray-400' : 'text-purple-500'}`}>
+                    {daysUntilExam === null ? '-' : daysUntilExam < 0 ? 'Realizada' : daysUntilExam}
+                  </p>
                 </div>
               </div>
             )}
@@ -337,11 +375,10 @@ if (!isMounted) {
                 </div>
               </div>
 
-              {/* Tempos - Altura Fixa */}
-              <div className="md:col-span-6 flex flex-col gap-4 h-[400px]">
-  <div className="grid grid-cols-2 gap-4 flex-grow">
-  
- <div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md flex flex-col justify-center items-center text-center">
+              {/* Grade unificada de métricas - todos os cards com mesma largura/altura */}
+              <div className="md:col-span-9 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 grid-rows-2 gap-4 h-auto lg:h-[400px]">
+
+<div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md flex flex-col justify-center items-center text-center">
   <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">
     Tempo Total de Estudos
   </h2>
@@ -366,7 +403,9 @@ if (!isMounted) {
 </span>
   </div>
 </div>
-<div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md flex flex-col justify-center items-center text-center">  <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
+
+<div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md flex flex-col justify-center items-center text-center">
+  <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">
     Progresso no Edital
   </h2>
   
@@ -390,9 +429,29 @@ if (!isMounted) {
   </div>
 </div>
 
+<div className="row-span-2 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md flex flex-col justify-center items-center text-center">
+  <h2 className="text-xl font-semibold mb-6">Constância</h2>
+  <div className="text-5xl xl:text-6xl font-black text-gold-500 mb-5 leading-none">{stats.studyConsistencyPercentage?.toFixed(1)}%</div>
+
+  <div className="mt-2 space-y-2 text-sm">
+    <div className="flex items-center justify-center gap-2 text-green-500 font-medium">
+      <span>✓</span>
+      <span>{stats.uniqueStudyDays} dias estudados</span>
+    </div>
+
+    <div className="flex items-center justify-center gap-2 text-red-500 font-medium">
+      <span>✗</span>
+      <span>{stats.failedStudyDays} dias falhos</span>
+    </div>
+
+    <div className="pt-3 border-t border-gray-200 dark:border-gray-700 text-yellow-500 font-medium">
+      Meta semanal: {studyDays.length} dias
+    </div>
+  </div>
 </div>
-    <div className="grid grid-cols-2 gap-4 flex-grow">
-<div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md flex flex-col justify-center items-center text-center">  <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">
+
+<div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md flex flex-col justify-center items-center text-center">
+  <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">
     Páginas lidas
   </h2>
 
@@ -410,43 +469,18 @@ if (!isMounted) {
 </div>
 </div>
 
-<div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md flex flex-col justify-center items-center text-center">        
+<div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md flex flex-col justify-center items-center text-center">
   <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">
-          Tempo Total de Videoaulas
-        </h2>
-        <p className="text-2xl lg:text-3xl font-bold text-gold-500 whitespace-nowrap leading-none">
-          {formatTime(stats.totalVideoTime)}
-        </p>
-      </div>
-    </div>
+    Tempo Total de Videoaulas
+  </h2>
+  <p className="text-2xl lg:text-3xl font-bold text-gold-500 whitespace-nowrap leading-none">
+    {formatTime(stats.totalVideoTime)}
+  </p>
+</div>
+
               </div>
 
-              {/* Constância - Altura Fixa */}
-<div className="md:col-span-3 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md h-[400px] flex flex-col justify-center items-center text-center">                <h2 className="text-xl font-semibold mb-6">Constância</h2>
-               <div className="text-5xl xl:text-6xl font-black text-gold-500 mb-5 leading-none">{stats.studyConsistencyPercentage?.toFixed(1)}%</div>
-
-<div className="mt-2 space-y-2 text-sm">
-
-  <div className="flex items-center justify-center gap-2 text-green-500 font-medium">
-    <span>✓</span>
-    <span>{stats.uniqueStudyDays} dias estudados</span>
-  </div>
-
-  <div className="flex items-center justify-center gap-2 text-red-500 font-medium">
-    <span>✗</span>
-    <span>{stats.failedStudyDays} dias falhos</span>
-  </div>
-
-  <div className="pt-3 border-t border-gray-200 dark:border-gray-700 text-yellow-500 font-medium">
-    Meta semanal: {studyDays.length} dias
-  </div>
-        
-</div>
-
-
-</div>
-
-</div>
+            </div>
   <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md h-[400px] flex flex-col mt-6">
   <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">
     Evolução de Estudos Diários
@@ -695,7 +729,7 @@ return [
         {activeTab === 'evolucao' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border-l-4 border-gold-500">
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border-l-4 border-gold-500 md:col-span-1">
                 <h3 className="text-sm font-bold text-gray-400 uppercase mb-2">Gap de Performance</h3>
                 <div className="flex items-end gap-2">
                   <span className={`text-4xl font-black ${stats.performanceGap >= 0 ? 'text-green-500' : 'text-red-500'}`}>
@@ -707,18 +741,6 @@ return [
                 <p className="text-xs text-gray-500 mt-3">✅ Gap positivo: desempenho nos simulados acima dos estudos.</p>
                 <p className="text-xs text-gray-500 mt-3">❌ Gap negativo: desempenho nos simulados abaixo dos estudos.</p>
 
-              </div>
-
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border-l-4 border-blue-500">
-                {/* <h3 className="text-sm font-bold text-gray-400 uppercase mb-2">Termômetro de Aprovação</h3> */}
-                <h2 className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-600 text-white">
-                   EM BREVE
-                </h2>
-
-                <div className="text-4xl font-black text-blue-500">
-                  {stats.planMetadata?.nota_corte_alvo ? `${((stats.overallSimuladoPerformance / stats.planMetadata.nota_corte_alvo) * 100).toFixed(0)}%` : '-'}
-                </div>
-                {/* <p className="text-xs text-gray-500 mt-3">Em relação à meta de {stats.planMetadata?.nota_corte_alvo || 80}%.</p> */}
               </div>
             </div>
           
@@ -732,7 +754,7 @@ return [
     <Line
       data={{
         labels: stats.simuladoHistory.map(s =>
-          new Date(s.date).toLocaleDateString('pt-BR')
+          formatDateBR(s.date)
         ),
         datasets: [{
           label: 'Desempenho',

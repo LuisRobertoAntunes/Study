@@ -2,6 +2,7 @@
 
 import React, { useEffect } from 'react';
 import FloatingStopwatchButton from './FloatingStopwatchButton';
+import AppVersionFooter from './AppVersionFooter';
 import { Chart, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title, BarElement } from 'chart.js';
 import { useSession } from 'next-auth/react';
 import { useRouter, usePathname } from 'next/navigation';
@@ -49,7 +50,7 @@ export default function ClientLayoutWrapper({
       <>
         {children}
         <FloatingStopwatchButton isVisible={pathname !== '/login'} />
-
+        <AppVersionFooter />
       </>
     );
   }

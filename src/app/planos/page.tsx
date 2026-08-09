@@ -7,11 +7,12 @@ import { createPlanFile } from '../actions'; // Keep this import for modals
 import Link from 'next/link';
 import Image from 'next/image';
 import CreatePlanModal from '../../components/CreatePlanModal';
-import { FaPlusCircle, FaFileAlt, FaTrash } from 'react-icons/fa';
+import { FaPlusCircle, FaFileAlt, FaTrash, FaExchangeAlt } from 'react-icons/fa';
 import { useNotification } from '../../context/NotificationContext';
 import ConfirmationModal from '../../components/ConfirmationModal';
 import ImportGuideForm from '../../components/ImportGuideForm';
 import WelcomeScreen from '../../components/WelcomeScreen';
+import SyncProgressModal from '../../components/SyncProgressModal';
 
 // Interfaces (keep as is)
 interface PlanContent {
@@ -49,6 +50,13 @@ export default function Planos() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [planToDelete, setPlanToDelete] = useState<PlanInfo | null>(null);
+  const [syncTargetPlan, setSyncTargetPlan] = useState<PlanInfo | null>(null);
+
+  const handleSyncClick = (event: React.MouseEvent, plan: PlanInfo) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setSyncTargetPlan(plan);
+  };
 
   const handleDeleteClick = (event: React.MouseEvent, plan: PlanInfo) => {
     event.preventDefault();
@@ -199,6 +207,13 @@ export default function Planos() {
                     <p className="text-gray-600 dark:text-gray-300 text-sm">Tópicos: <span className="font-semibold">{plan.topicCount}</span></p>
                   </Link>
                   <button
+                    onClick={(e) => handleSyncClick(e, plan)}
+                    className="absolute top-2 right-12 p-2 bg-gold-500 text-white rounded-full opacity-0 group-hover:opacity-100 hover:bg-gold-600 transition-opacity duration-300"
+                    title="Sincronizar Aproveitamento"
+                  >
+                    <FaExchangeAlt size={14} />
+                  </button>
+                  <button
                     onClick={(e) => handleDeleteClick(e, plan)}
                     className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 hover:bg-red-600 transition-opacity duration-300"
                     title="Excluir Plano"
@@ -224,6 +239,20 @@ export default function Planos() {
           confirmText="Excluir"
           cancelText="Cancelar"
         />
+        {syncTargetPlan && (
+          <SyncProgressModal
+            isOpen={!!syncTargetPlan}
+            onClose={() => setSyncTargetPlan(null)}
+            targetPlan={{ fileName: syncTargetPlan.fileName, name: syncTargetPlan.name }}
+            otherPlans={plansToDisplay
+              .filter(p => p.fileName !== syncTargetPlan.fileName)
+              .map(p => ({ fileName: p.fileName, name: p.name }))}
+            onSynced={async () => {
+              await refreshPlans();
+              showNotification('Progresso sincronizado com sucesso!', 'success');
+            }}
+          />
+        )}
       </>
     );
   }

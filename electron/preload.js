@@ -12,4 +12,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteBackup: (filePath) => ipcRenderer.invoke('delete-backup', filePath),
   onAppClosing: (callback) => ipcRenderer.on('app-closing', callback),
   sendBackupComplete: () => ipcRenderer.send('backup-complete'),
+  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+  onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (event, version) => callback(version)),
+  onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', (event, version) => callback(version)),
+  quitAndInstall: () => ipcRenderer.send('quit-and-install'),
 });

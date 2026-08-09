@@ -32,6 +32,7 @@ import { useNotification } from './NotificationContext';
 
 // --- INTERFACES HIERÁRQUICAS ---
 export interface EditalTopic {
+  id?: string; // ID estável do tópico (para não depender do texto, que pode ser editado)
   topic_text: string;
   completed: number;
   reviewed: number;
@@ -56,6 +57,7 @@ export interface StudyRecord {
   id: string;
   date: string;
   subjectId: string; // ID da matéria para referência estável
+  topicId?: string; // ID estável do tópico (evita quebra se o texto for editado)
   subject: string; // Nome da matéria para exibição
   topic: string;
   studyTime: number;
@@ -183,6 +185,7 @@ export interface Stats {
   simuladoTotalQuestions: number;
   overallStudyPerformance: number;
   overallSimuladoPerformance: number;
+  overallSimuladoWeightedPerformance: number;
   performanceGap: number;
   planMetadata: PlanMetadata | null;
   simuladoHistory: { date: string; performance: number }[];
@@ -268,6 +271,15 @@ const calculateStats = async (
   const currentPlanIndex = availablePlans.indexOf(selectedDataFile);
   const currentPlanData = studyPlans[currentPlanIndex];
 
+  if (currentPlanData && typeof currentPlanData === 'object' && !Array.isArray(currentPlanData)) {
+    planMetadata = {
+      concurso: currentPlanData.name,
+      data_prova: currentPlanData.data_prova,
+      banca: currentPlanData.banca,
+      nota_corte_alvo: currentPlanData.nota_corte_alvo,
+    };
+  }
+
   const initializeTopicsRecursively = (topics: any[], parentTopicText: string = ''): EditalTopic[] => {
     return (topics || []).flatMap(topic => {
       let cleanedTopicText = topic.topic_text;
@@ -346,7 +358,7 @@ const calculateStats = async (
     // Usar Date.UTC para evitar problemas de fuso horário local na comparação semanal
     const recordDate = new Date(Date.UTC(year, month - 1, day));
     const date = record.date;
-    uniqueDays.add(date);
+    if (record.countInPlanning) uniqueDays.add(date);
 
     let correctQs = 0;
     let totalQs = 0;
@@ -559,14 +571,70 @@ const calculateStats = async (
   const overallSimuladoPerformance = simuladoTotalQuestions > 0 ? (simuladoTotalCorrectQuestions / simuladoTotalQuestions) * 100 : 0;
   const performanceGap = overallSimuladoPerformance - overallStudyPerformance;
 
+  // Desempenho ponderado pelo peso de cada matéria (mesma lógica usada ao pontuar
+  // um simulado em "Novo Simulado"), para comparar corretamente com a Nota de Corte:
+  // uma matéria com peso maior pesa mais no resultado final, então acertar 100%
+  // de uma matéria com peso baixo não vale o mesmo que acertar 100% de uma com peso alto.
+  //
+  // Considera as questões de duas origens: (1) simulados cadastrados e (2) questões
+  // resolvidas no estudo diário — incluindo as que chegam via "Sincronizar Aproveitamento"
+  // entre editais, que entram como registros de estudo (StudyRecord), não como simulado.
+  // Como o peso só existe nos simulados, cada matéria usa o maior peso já
+  // registrado para ela em algum simulado; matérias sem nenhum simulado usam peso 1.
+  const subjectWeightMap: { [subjectName: string]: number } = {};
+  simuladoRecords.forEach(simulado => {
+    simulado.subjects.forEach(subject => {
+      const name = (subject as any).name || (subject as any).subjectName;
+      if (!name) return;
+      const weight = Number(subject.weight) || 1;
+      if (!subjectWeightMap[name] || weight > subjectWeightMap[name]) {
+        subjectWeightMap[name] = weight;
+      }
+    });
+  });
+
+  let weightedPoints = 0;
+  let weightedMaxPoints = 0;
+
+  // (1) Questões resolvidas no estudo diário (inclui as sincronizadas de outros editais)
+  Object.entries(subjectPerformance).forEach(([subjectName, perf]) => {
+    const weight = subjectWeightMap[subjectName] || 1;
+    weightedPoints += perf.correctQuestions * weight;
+    weightedMaxPoints += perf.totalQuestions * weight;
+  });
+
+  // (2) Questões dos simulados cadastrados
+  simuladoRecords.forEach(simulado => {
+    simulado.subjects.forEach(subject => {
+      const weight = Number(subject.weight) || 1;
+      const total = Number(subject.totalQuestions) || 0;
+      const correct = Number(subject.correct) || 0;
+      const incorrect = Number(subject.incorrect) || 0;
+      const subjectPoints = simulado.style === 'Certo/Errado' ? (correct - incorrect) * weight : correct * weight;
+      weightedPoints += subjectPoints;
+      weightedMaxPoints += total * weight;
+    });
+  });
+
+  const overallSimuladoWeightedPerformance = weightedMaxPoints > 0
+    ? (weightedPoints / weightedMaxPoints) * 100
+    : 0;
+
+  // Parseia "YYYY-MM-DD" como data LOCAL (evita o bug de new Date(string) que
+  // interpreta a string como UTC e "perde" um dia em fusos negativos como o do Brasil).
+  const parseLocalDate = (dateStr: string): Date => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+
   let totalDaysSinceFirstRecord = 0, failedStudyDays = 0, studyConsistencyPercentage = 0;
-  const allStudiedDays = new Set(studyRecords.map(r => r.date));
+  const allStudiedDays = new Set(studyRecords.filter(r => r.countInPlanning).map(r => r.date));
   
   let plannedStudyDays = 0;
   let averageStudyTimePerPlannedDay = 0;
 
   if (allStudiedDays.size > 0) {
-    const sortedDates = Array.from(allStudiedDays).map(d => new Date(d)).sort((a, b) => a.getTime() - b.getTime());
+    const sortedDates = Array.from(allStudiedDays).map(d => parseLocalDate(d)).sort((a, b) => a.getTime() - b.getTime());
     const firstDay = sortedDates[0];
     const lastDay = new Date();
     lastDay.setHours(0, 0, 0, 0);
@@ -606,7 +674,7 @@ const calculateStats = async (
      }
     }
 
-  const dates = studyRecords.map(r => new Date(r.date));
+  const dates = studyRecords.filter(r => r.countInPlanning).map(r => parseLocalDate(r.date));
   const firstStudyDate = dates.length > 0 ? new Date(Math.min.apply(null, dates.map(d => d.getTime()))) : null;
   const today = new Date();
   today.setDate(today.getDate() - (consistencyOffset * 30));
@@ -707,6 +775,7 @@ const calculateStats = async (
     simuladoTotalQuestions,
     overallStudyPerformance,
     overallSimuladoPerformance,
+    overallSimuladoWeightedPerformance,
     performanceGap,
     planMetadata,
     simuladoHistory,
@@ -1060,6 +1129,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     simuladoTotalQuestions: 0,
     overallStudyPerformance: 0,
     overallSimuladoPerformance: 0,
+    overallSimuladoWeightedPerformance: 0,
     performanceGap: 0,
     planMetadata: null,
     simuladoHistory: [],
@@ -1351,10 +1421,22 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
+    const findTopicId = (topics: EditalTopic[]): string | undefined => {
+      for (const t of topics || []) {
+        if (t.topic_text === record.topic) return t.id;
+        if (t.sub_topics) {
+          const found = findTopicId(t.sub_topics);
+          if (found) return found;
+        }
+      }
+      return undefined;
+    };
+
     const newRecord = {
       ...record,
       id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-      subjectId: subjectData.id
+      subjectId: subjectData.id,
+      topicId: findTopicId(subjectData.topics),
     };
 
     try {

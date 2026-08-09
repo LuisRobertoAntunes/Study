@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, Menu, dialog } = require("electron");
+const { autoUpdater } = require("electron-updater");
 const path = require("path");
 const fs = require("fs");
 const fsp = fs.promises;
@@ -209,6 +210,24 @@ ipcMain.on('backup-complete', () => {
   }
 });
 
+ipcMain.handle('get-app-version', () => app.getVersion());
+ipcMain.on('quit-and-install', () => {
+  autoUpdater.quitAndInstall();
+});
+
+function setupAutoUpdater() {
+  autoUpdater.autoDownload = true;
+  autoUpdater.on('update-available', (info) => {
+    if (mainWindow) mainWindow.webContents.send('update-available', info.version);
+  });
+  autoUpdater.on('update-downloaded', (info) => {
+    if (mainWindow) mainWindow.webContents.send('update-downloaded', info.version);
+  });
+  autoUpdater.on('error', (err) => {
+    console.error('Erro ao verificar atualização:', err);
+  });
+}
+
 app.whenReady().then(async () => {
   const dataDir = path.join(app.getPath("userData"), "data");
   process.env.DATA_DIR = dataDir;
@@ -258,6 +277,11 @@ app.whenReady().then(async () => {
 
 
   createWindow();
+
+  if (app.isPackaged) {
+    setupAutoUpdater();
+    autoUpdater.checkForUpdates().catch(err => console.error('Erro ao checar atualização:', err));
+  }
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

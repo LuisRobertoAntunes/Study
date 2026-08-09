@@ -17,6 +17,9 @@ interface PlanData {
   observations: string;
   cargo?: string;
   edital?: string;
+  banca?: string;
+  data_prova?: string;
+  nota_corte_alvo?: number;
   iconUrl?: string;
   subjects: Subject[];
   bancaTopicWeights?: {
@@ -294,7 +297,7 @@ export default function PlanoDetalhes() {
     }
   };
 
-  const handleSaveEditedPlan = async (updatedFields: { name: string; observations: string; cargo: string; edital: string; imageFile?: File; existingIconUrl?: string }) => {
+  const handleSaveEditedPlan = async (updatedFields: { name: string; observations: string; cargo: string; edital: string; banca?: string; data_prova?: string; nota_corte_alvo?: number; imageFile?: File; existingIconUrl?: string }) => {
     if (!planData) return;
 
     let finalIconUrl = updatedFields.existingIconUrl; // Assume existing URL by default
@@ -320,6 +323,9 @@ export default function PlanoDetalhes() {
       observations: updatedFields.observations,
       cargo: updatedFields.cargo,
       edital: updatedFields.edital,
+      banca: updatedFields.banca,
+      data_prova: updatedFields.data_prova,
+      nota_corte_alvo: updatedFields.nota_corte_alvo,
       iconUrl: finalIconUrl, // Use the new URL or the existing one
     };
 
