@@ -670,7 +670,7 @@ export async function renameSubjectAction(
 
 export async function addOrUpdateSubjectAction(
   fileName: string,
-  subjectData: { id?: string; subject: string; topics: EditalTopic[]; color: string }
+  subjectData: { id?: string; subject: string; topics: EditalTopic[]; color: string; weight?: number }
 ): Promise<{ success: boolean; error?: string; subjectId?: string }> {
   if (!fileName || !subjectData || !subjectData.subject) {
     return { success: false, error: 'Parâmetros inválidos.' };
@@ -711,6 +711,7 @@ export async function addOrUpdateSubjectAction(
         id: newId,
         subject: subjectData.subject,
         color: subjectData.color,
+        weight: subjectData.weight && subjectData.weight > 0 ? subjectData.weight : 1,
         topics: subjectData.topics,
       };
       planData.subjects.push(newSubject);

@@ -383,10 +383,10 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
     setIsAddReviewModalOpen(false);
   };
 
-  const handleAddSubject = async (subjectName: string, topics: Topic[], color: string) => {
+  const handleAddSubject = async (subjectName: string, topics: Topic[], color: string, weight: number) => {
     if (!saveSubject) return;
 
-    const result = await saveSubject({ subject: subjectName, topics, color });
+    const result = await saveSubject({ subject: subjectName, topics, color, weight });
 
     if (result.success) {
       setIsAddSubjectModalOpen(false);

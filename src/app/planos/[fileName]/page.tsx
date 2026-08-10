@@ -33,6 +33,7 @@ interface Subject {
   subject: string;
   topics: Topic[];
   color: string; // Adicionando a propriedade color
+  weight?: number; // Peso usado no cálculo da nota ponderada (propaga para os simulados)
 }
 
 interface Topic {
@@ -85,6 +86,7 @@ const normalizePlanData = (data: PlanData | Subject[] | null, fileName: string):
     const subjectsWithColors = data.map(subject => ({
       ...subject,
       color: subject.color || defaultColor,
+      weight: subject.weight && subject.weight > 0 ? subject.weight : 1,
     }));
     // Apply uniqueness here
     const uniqueSubjectsMap = new Map<string, Subject>();
@@ -105,6 +107,7 @@ const normalizePlanData = (data: PlanData | Subject[] | null, fileName: string):
     const subjectsWithColors = subjects.map((subject: Subject) => ({
       ...subject,
       color: subject.color || defaultColor,
+      weight: subject.weight && subject.weight > 0 ? subject.weight : 1,
     }));
     // Apply uniqueness here
     const uniqueSubjectsMap = new Map<string, Subject>();
@@ -231,7 +234,7 @@ export default function PlanoDetalhes() {
     fetchPlanData();
   }, [fetchPlanData]);
 
-  const handleSaveSubject = async (subjectName: string, topics: Topic[], color: string) => {
+  const handleSaveSubject = async (subjectName: string, topics: Topic[], color: string, weight: number) => {
     if (!planData) return;
 
     let updatedSubjects: Subject[];
@@ -241,7 +244,7 @@ export default function PlanoDetalhes() {
       // Modo de edição
       updatedSubjects = planData.subjects.map(s =>
         s.subject === subjectToEdit.subject
-          ? { ...s, subject: subjectName, topics: topics, color: color } // Usa a estrutura de tópicos diretamente
+          ? { ...s, subject: subjectName, topics: topics, color: color, weight: weight } // Usa a estrutura de tópicos diretamente
           : s
       );
       successMessage = 'Disciplina atualizada com sucesso!';
@@ -251,6 +254,7 @@ export default function PlanoDetalhes() {
         subject: subjectName,
         topics: topics, // Usa a estrutura de tópicos diretamente
         color: color,
+        weight: weight,
       };
       updatedSubjects = [...planData.subjects, newSubject];
       successMessage = 'Disciplina adicionada com sucesso!';

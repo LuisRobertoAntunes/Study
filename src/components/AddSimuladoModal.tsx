@@ -27,6 +27,9 @@ export default function AddSimuladoModal({ isOpen, onClose, initialSimulado }: A
   updateSimuladoRecord
 } = useData();
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  // Texto bruto do campo "Peso" por disciplina, para permitir digitar "1," ou "1,5"
+  // sem que o valor numérico controlado apague a vírgula enquanto o usuário digita.
+  const [weightInputs, setWeightInputs] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [examStyle, setExamStyle] = useState('Múltipla Escolha');
   const [simuladoName, setSimuladoName] = useState('');
@@ -45,6 +48,7 @@ export default function AddSimuladoModal({ isOpen, onClose, initialSimulado }: A
         setTimeSpent(initialSimulado.timeSpent);
         setComments(initialSimulado.comments);
         setSubjects(initialSimulado.subjects);
+        setWeightInputs(initialSimulado.subjects.map(s => String(s.weight).replace('.', ',')));
       } else {
         // Resetar o formulário para um novo simulado
         setSelectedDate(new Date().toISOString().split('T')[0]);
@@ -62,9 +66,12 @@ export default function AddSimuladoModal({ isOpen, onClose, initialSimulado }: A
     const subjectsMap = new Map<string, Subject>();
 
     currentPlan.subjects.forEach(subject => {
+      // Propaga o peso cadastrado na disciplina do plano como padrão do simulado,
+      // evitando ter que cadastrar o mesmo peso duas vezes. Ainda pode ser editado abaixo.
+      const planWeight = Number((subject as any).weight);
       subjectsMap.set(subject.subject, {
         name: subject.subject,
-        weight: 1,
+        weight: planWeight > 0 ? planWeight : 1,
         totalQuestions: 0,
         correct: 0,
         incorrect: 0,
@@ -72,7 +79,9 @@ export default function AddSimuladoModal({ isOpen, onClose, initialSimulado }: A
       });
     });
 
-    setSubjects(Array.from(subjectsMap.values()));
+    const newSubjects = Array.from(subjectsMap.values());
+    setSubjects(newSubjects);
+    setWeightInputs(newSubjects.map(s => String(s.weight).replace('.', ',')));
   }
 }
       }
@@ -94,8 +103,26 @@ export default function AddSimuladoModal({ isOpen, onClose, initialSimulado }: A
     setSubjects(newSubjects);
   };
 
+  // Igual ao handleSubjectChange, mas preserva o texto digitado (com vírgula) no
+  // campo Peso enquanto o usuário ainda está digitando, ex: "1," antes de "1,5".
+  // Aceita tanto vírgula quanto ponto como separador decimal.
+  const handleWeightInputChange = (index: number, rawValue: string) => {
+    const newWeightInputs = [...weightInputs];
+    newWeightInputs[index] = rawValue;
+    setWeightInputs(newWeightInputs);
+
+    const numericValue = Number(rawValue.replace(',', '.'));
+    if (isNaN(numericValue) || numericValue <= 0) {
+      return;
+    }
+    const newSubjects = [...subjects];
+    newSubjects[index].weight = numericValue;
+    setSubjects(newSubjects);
+  };
+
   const handleDeleteSubject = (indexToDelete: number) => {
     setSubjects(subjects.filter((_, index) => index !== indexToDelete));
+    setWeightInputs(weightInputs.filter((_, index) => index !== indexToDelete));
   };
 
   const totals = useMemo(() => {
@@ -231,7 +258,7 @@ export default function AddSimuladoModal({ isOpen, onClose, initialSimulado }: A
                   return (
                     <tr key={subject.name} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" style={{ borderLeft: `4px solid ${subject.color}` }}>
                       <td className="py-3 px-4 font-medium text-gray-800 dark:text-gray-200">{subject.name}</td>
-                      <td className="p-2"><input type="number" value={subject.weight} onChange={(e) => handleSubjectChange(index, 'weight', e.target.value)} className="w-20 p-2 text-center bg-gray-50 dark:bg-gray-700 dark:text-gray-100 border-gold-500 dark:border-gold-700 border rounded-md focus:ring-2 focus:ring-gold-500 focus:border-gold-500" /></td>
+                      <td className="p-2"><input type="text" inputMode="decimal" value={weightInputs[index] ?? String(subject.weight)} onChange={(e) => handleWeightInputChange(index, e.target.value)} className="w-20 p-2 text-center bg-gray-50 dark:bg-gray-700 dark:text-gray-100 border-gold-500 dark:border-gold-700 border rounded-md focus:ring-2 focus:ring-gold-500 focus:border-gold-500" /></td>
                       <td className="p-2"><input type="number" value={subject.totalQuestions} onChange={(e) => handleSubjectChange(index, 'totalQuestions', e.target.value)} className="w-20 p-2 text-center bg-gray-50 dark:bg-gray-700 dark:text-gray-100 border-gold-500 dark:border-gold-700 border rounded-md focus:ring-2 focus:ring-gold-500 focus:border-gold-500" /></td>
                       <td className="p-2"><input type="number" value={subject.correct} onChange={(e) => handleSubjectChange(index, 'correct', e.target.value)} className="w-20 p-2 text-center bg-green-50 dark:bg-green-900/50 dark:text-gray-100 border-gold-500 dark:border-gold-700 border rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500" /></td>
                       <td className="p-2"><input type="number" value={subject.incorrect} onChange={(e) => handleSubjectChange(index, 'incorrect', e.target.value)} className="w-20 p-2 text-center bg-red-50 dark:bg-red-900/50 dark:text-gray-100 border-gold-500 dark:border-gold-700 border rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500" /></td>

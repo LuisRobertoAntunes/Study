@@ -49,6 +49,7 @@ export interface EditalSubject {
   id: string; // Adiciona um ID único para a matéria
   subject: string;
   color: string;
+  weight?: number; // Peso da matéria no plano; propaga como padrão para os simulados
   topics: EditalTopic[];
 }
 // --- FIM DAS INTERFACES ---
@@ -579,8 +580,22 @@ const calculateStats = async (
   // Considera as questões de duas origens: (1) simulados cadastrados e (2) questões
   // resolvidas no estudo diário — incluindo as que chegam via "Sincronizar Aproveitamento"
   // entre editais, que entram como registros de estudo (StudyRecord), não como simulado.
-  // Como o peso só existe nos simulados, cada matéria usa o maior peso já
-  // registrado para ela em algum simulado; matérias sem nenhum simulado usam peso 1.
+  // Peso cadastrado em cada matéria do plano (edital). Serve de padrão/propagação
+  // para os simulados e como fallback quando a matéria ainda não tem peso
+  // registrado em nenhum simulado.
+  const editalSubjectWeightMap: { [subjectName: string]: number } = {};
+  (currentPlanData?.subjects || []).forEach((subject: any) => {
+    if (!subject?.subject) return;
+    const weight = Number(subject.weight);
+    if (weight > 0) {
+      editalSubjectWeightMap[subject.subject] = weight;
+    }
+  });
+
+  // O peso registrado no simulado tem prioridade sobre o peso do plano: cada
+  // matéria usa o maior peso já registrado para ela em algum simulado; matérias
+  // sem nenhum peso registrado em simulado caem para o peso do plano (edital) e,
+  // na ausência deste, usam peso 1.
   const subjectWeightMap: { [subjectName: string]: number } = {};
   simuladoRecords.forEach(simulado => {
     simulado.subjects.forEach(subject => {
@@ -598,7 +613,7 @@ const calculateStats = async (
 
   // (1) Questões resolvidas no estudo diário (inclui as sincronizadas de outros editais)
   Object.entries(subjectPerformance).forEach(([subjectName, perf]) => {
-    const weight = subjectWeightMap[subjectName] || 1;
+    const weight = subjectWeightMap[subjectName] || editalSubjectWeightMap[subjectName] || 1;
     weightedPoints += perf.correctQuestions * weight;
     weightedMaxPoints += perf.totalQuestions * weight;
   });
@@ -606,7 +621,8 @@ const calculateStats = async (
   // (2) Questões dos simulados cadastrados
   simuladoRecords.forEach(simulado => {
     simulado.subjects.forEach(subject => {
-      const weight = Number(subject.weight) || 1;
+      const subjectName = (subject as any).name || (subject as any).subjectName;
+      const weight = Number(subject.weight) || editalSubjectWeightMap[subjectName] || 1;
       const total = Number(subject.totalQuestions) || 0;
       const correct = Number(subject.correct) || 0;
       const incorrect = Number(subject.incorrect) || 0;
@@ -872,7 +888,7 @@ interface DataContextType {
   importAllData: (data: any) => Promise<void>;
   deletePlan: (fileName: string) => Promise<void>;
   renameSubject: (subjectId: string, newName: string) => Promise<void>;
-  saveSubject: (subjectData: { id?: string; subject: string; topics: EditalTopic[]; color: string }) => Promise<{ success: boolean; error?: string; subjectId?: string; }>;
+  saveSubject: (subjectData: { id?: string; subject: string; topics: EditalTopic[]; color: string; weight?: number }) => Promise<{ success: boolean; error?: string; subjectId?: string; }>;
   refreshPlans: () => Promise<void>;
   topicScores: TopicScore[];
   getRecommendedSession: (options?: { forceSubject?: string | null }) => { recommendedTopic: TopicScore | null; justification: string };
@@ -1513,35 +1529,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [selectedDataFile, showNotification, stats.editalData]);
 
-  const addSimuladoRecord = useCallback(async (record: Omit<SimuladoRecord, 'id'>) => {
-    if (!selectedDataFile) {
-      showNotification('Nenhum plano de estudos selecionado para salvar o simulado.', 'error');
-      return;
-    }
-    const newRecord = { ...record, id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}` };
-    try {
-      setSimuladoRecords(prevRecords => [...prevRecords, newRecord]);
-      await saveSimuladoRecord(selectedDataFile, newRecord);
-      showNotification('Simulado salvo com sucesso!', 'success');
-    } catch (error) {
-      console.error("Falha ao salvar o simulado:", error);
-      showNotification('Erro ao salvar o simulado. Tente novamente.', 'error');
-      setSimuladoRecords(prevRecords => prevRecords.filter(r => r.id !== newRecord.id));
-    }
-  }, [selectedDataFile, showNotification]);
-
-  const updateSimuladoRecord = useCallback(async (record: SimuladoRecord) => {
-    if (!selectedDataFile) return;
-    try {
-      await updateSimuladoRecordAction(selectedDataFile, record);
-      setSimuladoRecords(prevRecords => prevRecords.map(r => (r.id === record.id ? record : r)));
-      showNotification('Simulado atualizado com sucesso!', 'success');
-    } catch (error) {
-      console.error("Falha ao atualizar o simulado:", error);
-      showNotification('Erro ao atualizar o simulado. Tente novamente.', 'error');
-    }
-  }, [selectedDataFile, showNotification]);
-
   const deleteSimuladoRecord = useCallback(async (id: string) => {
     if (!selectedDataFile) return;
     try {
@@ -2011,7 +1998,78 @@ const clientData = {
     setLoading(false);
   }, [authStatus]);
 
-  const saveSubject = useCallback(async (subjectData: { id?: string; subject: string; topics: EditalTopic[]; color: string }) => {
+  // Mantém o peso da matéria no plano igual ao peso usado no simulado.
+  // O simulado é sempre a fonte de verdade: se o usuário editar o peso ao
+  // registrar/editar um simulado, o peso da matéria no plano é atualizado para
+  // acompanhar, evitando que o usuário veja dois pesos diferentes para a mesma
+  // matéria. O cálculo da nota ponderada continua priorizando o peso salvo em
+  // cada simulado (não depende dessa sincronização para estar correto).
+  const syncSubjectWeightsWithPlan = useCallback(async (subjects: { name: string; weight: number }[]) => {
+    if (!selectedDataFile) return;
+    const currentPlanIndex = availablePlans.indexOf(selectedDataFile);
+    const currentPlan = studyPlans[currentPlanIndex];
+    if (!currentPlan?.subjects) return;
+
+    let planChanged = false;
+    for (const simSubject of subjects) {
+      const planSubject = currentPlan.subjects.find(s => s.subject === simSubject.name) as any;
+      if (!planSubject) continue; // Matéria não existe mais no plano atual, ignora.
+
+      const planWeight = Number(planSubject.weight) || 1;
+      const simWeight = Number(simSubject.weight) || 1;
+      if (planWeight === simWeight) continue;
+
+      try {
+        await addOrUpdateSubjectAction(selectedDataFile, {
+          id: planSubject.id,
+          subject: planSubject.subject,
+          topics: planSubject.topics || [],
+          color: planSubject.color,
+          weight: simWeight,
+        });
+        planChanged = true;
+      } catch (error) {
+        console.error(`Falha ao sincronizar peso da matéria "${simSubject.name}" com o plano:`, error);
+      }
+    }
+
+    if (planChanged) {
+      await refreshPlans();
+    }
+  }, [selectedDataFile, availablePlans, studyPlans, refreshPlans]);
+
+  const addSimuladoRecord = useCallback(async (record: Omit<SimuladoRecord, 'id'>) => {
+    if (!selectedDataFile) {
+      showNotification('Nenhum plano de estudos selecionado para salvar o simulado.', 'error');
+      return;
+    }
+    const newRecord = { ...record, id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}` };
+    try {
+      setSimuladoRecords(prevRecords => [...prevRecords, newRecord]);
+      await saveSimuladoRecord(selectedDataFile, newRecord);
+      await syncSubjectWeightsWithPlan(newRecord.subjects);
+      showNotification('Simulado salvo com sucesso!', 'success');
+    } catch (error) {
+      console.error("Falha ao salvar o simulado:", error);
+      showNotification('Erro ao salvar o simulado. Tente novamente.', 'error');
+      setSimuladoRecords(prevRecords => prevRecords.filter(r => r.id !== newRecord.id));
+    }
+  }, [selectedDataFile, showNotification, syncSubjectWeightsWithPlan]);
+
+  const updateSimuladoRecord = useCallback(async (record: SimuladoRecord) => {
+    if (!selectedDataFile) return;
+    try {
+      await updateSimuladoRecordAction(selectedDataFile, record);
+      setSimuladoRecords(prevRecords => prevRecords.map(r => (r.id === record.id ? record : r)));
+      await syncSubjectWeightsWithPlan(record.subjects);
+      showNotification('Simulado atualizado com sucesso!', 'success');
+    } catch (error) {
+      console.error("Falha ao atualizar o simulado:", error);
+      showNotification('Erro ao atualizar o simulado. Tente novamente.', 'error');
+    }
+  }, [selectedDataFile, showNotification, syncSubjectWeightsWithPlan]);
+
+  const saveSubject = useCallback(async (subjectData: { id?: string; subject: string; topics: EditalTopic[]; color: string; weight?: number }) => {
     if (!selectedDataFile) {
       const errorMsg = 'Nenhum plano de estudos selecionado.';
       showNotification(errorMsg, 'error');

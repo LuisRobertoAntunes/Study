@@ -10,12 +10,13 @@ interface Subject {
   subject: string;
   topics: Topic[];
   color: string;
+  weight?: number;
 }
 
 interface AddSubjectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (subjectName: string, topics: Topic[], color: string) => void; // Atualizado para aceitar Topic[]
+  onSave: (subjectName: string, topics: Topic[], color: string, weight: number) => void; // Atualizado para aceitar Topic[] e weight
   initialSubjectData?: Subject;
 }
 
@@ -120,6 +121,10 @@ const AddSubjectModal: React.FC<AddSubjectModalProps> = ({ isOpen, onClose, onSa
   const [topicsContent, setTopicsContent] = useState(''); // Estado para o conteúdo do textarea
   const [selectedColor, setSelectedColor] = useState(colors[0]);
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
+  // Guardado como texto para permitir digitar vírgula decimal (ex: "1,5") sem
+  // que o valor controlado apague o que foi digitado. Convertido para número
+  // apenas na leitura (handleSave) e ao carregar dados existentes.
+  const [subjectWeight, setSubjectWeight] = useState('1');
   const colorPickerRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -139,6 +144,7 @@ const AddSubjectModal: React.FC<AddSubjectModalProps> = ({ isOpen, onClose, onSa
       if (initialSubjectData) {
         setSubjectName(initialSubjectData.subject);
         setSelectedColor(initialSubjectData.color || colors[0]);
+        setSubjectWeight(String(initialSubjectData.weight && initialSubjectData.weight > 0 ? initialSubjectData.weight : 1).replace('.', ','));
         // Formata a estrutura de tópicos para o textarea
         setTopicsContent(formatTopicsRecursively(initialSubjectData.topics || []));
       } else {
@@ -146,6 +152,7 @@ const AddSubjectModal: React.FC<AddSubjectModalProps> = ({ isOpen, onClose, onSa
         setSubjectName('');
         setTopicsContent('');
         setSelectedColor(colors[0]);
+        setSubjectWeight('1');
       }
     }
   }, [isOpen, initialSubjectData]);
@@ -156,7 +163,9 @@ const AddSubjectModal: React.FC<AddSubjectModalProps> = ({ isOpen, onClose, onSa
     if (subjectName.trim()) {
       // Parseia o conteúdo do textarea de volta para a estrutura Topic[]
       const topics = parseTopicsFromString(topicsContent);
-      onSave(subjectName.trim(), topics, selectedColor);
+      const parsedWeight = Number(String(subjectWeight).replace(',', '.'));
+      const weight = parsedWeight > 0 ? parsedWeight : 1;
+      onSave(subjectName.trim(), topics, selectedColor, weight);
       onClose(); // Fecha o modal após salvar
     } else {
       showNotification('O nome da disciplina não pode estar vazio.', 'error');
@@ -170,7 +179,7 @@ const AddSubjectModal: React.FC<AddSubjectModalProps> = ({ isOpen, onClose, onSa
         <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6 text-center">Nova Disciplina</h2>
 
         <div className="flex flex-col md:flex-row gap-4 mb-4">
-          <div className="w-full md:w-3/4">
+          <div className="w-full md:w-2/4">
             <label htmlFor="subjectName" className="block text-sm font-bold text-gold-800 dark:text-gold-300 mb-2">
               NOME DA DISCIPLINA
             </label>
@@ -182,6 +191,22 @@ const AddSubjectModal: React.FC<AddSubjectModalProps> = ({ isOpen, onClose, onSa
               placeholder="Ex: Direito Administrativo"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gold-500 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:ring-gold-400"
               autoFocus
+            />
+          </div>
+
+          <div className="w-full md:w-1/4">
+            <label htmlFor="subjectWeight" className="block text-sm font-bold text-gold-800 dark:text-gold-300 mb-2">
+              PESO
+            </label>
+            <input
+              type="text"
+              inputMode="decimal"
+              id="subjectWeight"
+              value={subjectWeight}
+              onChange={(e) => setSubjectWeight(e.target.value)}
+              placeholder="Ex: 1 ou 1,5"
+              title="Peso usado no cálculo da nota ponderada. Pode ser substituído em cada simulado."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gold-500 dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600 dark:focus:ring-gold-400"
             />
           </div>
 
