@@ -10,6 +10,7 @@ import CreatePlanModal from '../../../components/CreatePlanModal';
 import { FaPlusCircle, FaEdit, FaTrash, FaCamera, FaEye } from 'react-icons/fa';
 import { useNotification } from '../../../context/NotificationContext';
 import ConfirmationModal from '../../../components/ConfirmationModal';
+import { useData } from '../../../context/DataContext';
 
 // Interfaces
 interface PlanData {
@@ -139,6 +140,7 @@ export default function PlanoDetalhes() {
   const fileName = params.fileName as string;
   const router = useRouter();
   const { showNotification } = useNotification();
+  const { refreshPlans, syncSubjectColorInCycle } = useData();
   
   const [planData, setPlanData] = useState<PlanData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -274,6 +276,8 @@ export default function PlanoDetalhes() {
       subjects: reindexedSubjects,
     };
 
+    const editedSubjectOriginalName = subjectToEdit?.subject;
+
     setPlanData(updatedPlanData);
     setHasChanges(true);
     setIsSubjectModalOpen(false);
@@ -282,6 +286,14 @@ export default function PlanoDetalhes() {
     const result = await updatePlanFile(fileName, updatedPlanData);
     if (result.success) {
       showNotification(successMessage, 'success');
+      // Propaga a cor/nome atualizados para o restante do app: a aba
+      // Matérias lê os planos do contexto global (precisa de refreshPlans),
+      // e a aba Planejamento guarda uma cópia da cor em cada sessão do
+      // ciclo já gerado (precisa de sincronização explícita).
+      if (editedSubjectOriginalName) {
+        syncSubjectColorInCycle(editedSubjectOriginalName, subjectName, color);
+      }
+      await refreshPlans();
     } else {
       showNotification(`Erro ao salvar a disciplina: ${result.error}`, 'error');
     }

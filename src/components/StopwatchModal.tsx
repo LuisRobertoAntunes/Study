@@ -265,7 +265,7 @@ const StopwatchModal: React.FC<StopwatchModalProps> = ({ isOpen, onClose, onSave
       <style>{barberPoleStyle}</style>
       <div className="w-full max-w-4xl p-8 rounded-2xl text-gray-900 dark:text-white flex flex-col bg-white dark:bg-gray-800">
         <div className="flex justify-between items-center mb-6 gap-4">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 truncate">{initialSubject || 'Sessão de Estudo'}</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 truncate min-w-0">{initialSubject || 'Sessão de Estudo'}</h2>
           <div className="flex items-center space-x-4 flex-shrink-0">
             <div className="w-48">
               <select

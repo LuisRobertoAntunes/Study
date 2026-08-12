@@ -889,6 +889,7 @@ interface DataContextType {
   deletePlan: (fileName: string) => Promise<void>;
   renameSubject: (subjectId: string, newName: string) => Promise<void>;
   saveSubject: (subjectData: { id?: string; subject: string; topics: EditalTopic[]; color: string; weight?: number }) => Promise<{ success: boolean; error?: string; subjectId?: string; }>;
+  syncSubjectColorInCycle: (oldSubjectName: string, newSubjectName: string, newColor: string) => void;
   refreshPlans: () => Promise<void>;
   topicScores: TopicScore[];
   getRecommendedSession: (options?: { forceSubject?: string | null }) => { recommendedTopic: TopicScore | null; justification: string };
@@ -2081,6 +2082,30 @@ const clientData = {
       if (result.success) {
         showNotification(`Matéria "${subjectData.subject}" salva com sucesso!`, 'success');
         await refreshPlans();
+
+        // Propaga a cor (e o nome) atualizados da matéria para as sessões já
+        // geradas no ciclo de estudo. O ciclo guarda uma cópia da cor no
+        // momento em que foi gerado, então sem isso a aba de Planejamento
+        // continuava exibindo a cor antiga mesmo após a edição na aba Planos.
+        const syncedSubjectId = subjectData.id || result.subjectId;
+        if (syncedSubjectId) {
+          setStudyCycle(prevCycle => {
+            if (!prevCycle) return prevCycle;
+            let changed = false;
+            const updatedCycle = prevCycle.map(session => {
+              if (
+                session.subjectId === syncedSubjectId &&
+                (session.color !== subjectData.color || session.subject !== subjectData.subject)
+              ) {
+                changed = true;
+                return { ...session, color: subjectData.color, subject: subjectData.subject };
+              }
+              return session;
+            });
+            return changed ? updatedCycle : prevCycle;
+          });
+        }
+
         return { success: true, subjectId: result.subjectId };
       } else {
         showNotification(result.error || 'Falha ao salvar a matéria.', 'error');
@@ -2093,6 +2118,27 @@ const clientData = {
       return { success: false, error: errorMsg };
     }
   }, [selectedDataFile, showNotification, refreshPlans]);
+
+  // Atualiza a cor (e o nome) de uma matéria nas sessões já geradas no ciclo
+  // de estudo. Necessário porque o ciclo guarda uma cópia da cor/nome no
+  // momento em que foi gerado; sem isso, editar a matéria em telas que
+  // gravam o plano diretamente (fora do fluxo de saveSubject) deixava a
+  // aba de Planejamento presa na cor antiga. Casamento por NOME porque
+  // esse é o único dado estável disponível nesses fluxos legados.
+  const syncSubjectColorInCycle = useCallback((oldSubjectName: string, newSubjectName: string, newColor: string) => {
+    setStudyCycle(prevCycle => {
+      if (!prevCycle) return prevCycle;
+      let changed = false;
+      const updatedCycle = prevCycle.map(session => {
+        if (session.subject === oldSubjectName && (session.color !== newColor || session.subject !== newSubjectName)) {
+          changed = true;
+          return { ...session, color: newColor, subject: newSubjectName };
+        }
+        return session;
+      });
+      return changed ? updatedCycle : prevCycle;
+    });
+  }, []);
 
   const clearAllData = useCallback(async () => {
     try {
@@ -2139,7 +2185,7 @@ const clientData = {
       formatMinutesToHoursMinutes, handleCompleteSession, studyHours, setStudyHours,
       weeklyQuestionsGoal, setWeeklyQuestionsGoal, studyDays, setStudyDays,
       reminderNotes, addReminderNote, toggleReminderNote, deleteReminderNote,
-      updateReminderNote, exportAllData, importAllData, deletePlan, renameSubject, saveSubject,
+      updateReminderNote, exportAllData, importAllData, deletePlan, renameSubject, saveSubject, syncSubjectColorInCycle,
       topicScores, getRecommendedSession, updateTopicWeight, availableSubjects, availableCategories, clearAllData, refreshPlans,
       cycleGenerationTimestamp,
     }}>      <BackupManager />

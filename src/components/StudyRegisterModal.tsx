@@ -446,8 +446,8 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
               </div>
               <div className="md:col-span-2">
                 <label htmlFor="subject" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Disciplina</label>
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-grow" ref={subjectDropdownRef}>
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="relative flex-grow min-w-0" ref={subjectDropdownRef}>
                     <button type="button" onClick={() => setIsSubjectDropdownOpen(!isSubjectDropdownOpen)} className={`mt-1 block w-full pl-3 pr-10 py-2 text-left text-base border-2 ${errors.subject ? 'border-red-500' : 'border-gold-500 dark:border-gold-700'} focus:outline-none focus:ring-gold-500 focus:border-gold-500 sm:text-sm rounded-md bg-white dark:bg-gray-700 dark:text-gray-100`}>
                       <span className="block truncate text-gray-700 dark:text-gray-100">{selectedSubject || 'Selecione...'}</span>
                       <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2"><svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a.75.75 0 01.53.22l3.5 3.5a.75.75 0 01-1.06 1.06L10 4.81 6.53 8.28a.75.75 0 01-1.06-1.06l3.5-3.5A.75.75 0 0110 3zm-3.72 9.53a.75.75 0 011.06 0L10 15.19l2.67-2.66a.75.75 0 111.06 1.06l-3.5 3.5a.75.75 0 01-1.06 0l-3.5-3.5a.75.75 0 010-1.06z" clipRule="evenodd" /></svg></span>
