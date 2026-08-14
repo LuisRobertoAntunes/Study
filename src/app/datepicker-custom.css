@@ -1,19 +1,23 @@
 /* Dark Mode Styles for react-datepicker */
 html.dark {
   .react-datepicker {
-    background-color: #513737;
+    background-color: #1f2937;
+    /* gray-800 (mesma superfície usada pelos cards e modais do app) */
+    border: 1px solid #374151;
     /* gray-700 */
-    border: 1px solid #4b5563;
-    /* gray-600 */
     color: #ffffff;
-    /* gray-300 */
+  }
+
+  .react-datepicker__month-container {
+    background-color: #1f2937;
+    /* gray-800 */
   }
 
   .react-datepicker__header {
-    background-color: #4b5563;
-    /* gray-600 */
-    border-bottom: 1px solid #6b7280;
-    /* gray-500 */
+    background-color: #111827;
+    /* gray-900 (mesmo tom usado nos cabeçalhos de tabela desta página) */
+    border-bottom: 1px solid #374151;
+    /* gray-700 */
   }
 
   .react-datepicker__current-month,
@@ -21,25 +25,24 @@ html.dark {
   .react-datepicker-year-header,
   .react-datepicker__day-name {
     color: #ffffff;
-    /* gray-300 */
   }
 
   .react-datepicker__day {
-    color: #ffffff;
-    /* gray-300 */
+    color: #e5e7eb;
+    /* gray-200 */
   }
 
   .react-datepicker__day--selected,
   .react-datepicker__day--keyboard-selected,
   .react-datepicker__day--in-selecting-range,
   .react-datepicker__day--in-range {
-    background-color: #3b82f6;
-    /* gold-500 */
+    background-color: #2563eb;
+    /* gold-600 (paleta do projeto) */
     color: #ffffff;
   }
 
   .react-datepicker__day--outside-month {
-    color: #ffffff;
+    color: #6b7280;
     /* gray-500 */
   }
 
@@ -50,28 +53,27 @@ html.dark {
   }
 
   .react-datepicker__day:hover {
-    background-color: #4b5563;
-    /* gray-600 */
+    background-color: #374151;
+    /* gray-700 */
     color: #ffffff;
   }
 
   .react-datepicker__navigation--previous,
   .react-datepicker__navigation--next {
-    border-color: #d1d5db;
-    /* gray-300 */
+    border-color: #9ca3af;
+    /* gray-400 */
   }
 
   .react-datepicker__navigation-icon::before {
-    border-color: #d1d5db;
-    /* gray-300 */
+    border-color: #9ca3af;
+    /* gray-400 */
   }
 
   .react-datepicker__input-container input {
-    background-color: #4b5563;
-    /* gray-600 */
+    background-color: #374151;
+    /* gray-700 */
     color: #ffffff;
-    /* gray-300 */
-    border-color: #6b7280;
-    /* gray-500 */
+    border-color: #4b5563;
+    /* gray-600 */
   }
 }

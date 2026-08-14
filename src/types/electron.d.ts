@@ -9,6 +9,7 @@ export interface IElectronAPI {
   deleteBackup: (filePath: string) => Promise<{ success: boolean; error?: string }>;
   onAppClosing: (callback: () => void) => void;
   sendBackupComplete: () => void;
+  getDefaultBackupPath: () => Promise<string>;
 }
 
 declare global {

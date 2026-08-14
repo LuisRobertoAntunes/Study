@@ -214,6 +214,39 @@ export default function DashboardPage() {
     weeklyQuestionsGoal
   } = useData();
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  const [performanceSortColumn, setPerformanceSortColumn] = useState<'disciplina' | 'tempo' | 'questoes' | 'acerto'>('tempo');
+  const [performanceSortDirection, setPerformanceSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  const handlePerformanceSort = (column: 'disciplina' | 'tempo' | 'questoes' | 'acerto') => {
+    if (column === performanceSortColumn) {
+      // Clicou na mesma coluna de novo: inverte a direção (maior→menor vira menor→maior, e vice-versa).
+      setPerformanceSortDirection(prev => (prev === 'desc' ? 'asc' : 'desc'));
+    } else {
+      // Trocou de coluna: começa sempre do maior para o menor.
+      setPerformanceSortColumn(column);
+      setPerformanceSortDirection('desc');
+    }
+  };
+
+  const sortedSubjectPerformance = useMemo(() => {
+    const entries = Object.entries(stats.subjectPerformance);
+    const directionMultiplier = performanceSortDirection === 'desc' ? 1 : -1;
+    entries.sort(([nameA, statsA], [nameB, statsB]) => {
+      switch (performanceSortColumn) {
+        case 'disciplina':
+          return nameB.localeCompare(nameA, 'pt-BR') * directionMultiplier;
+        case 'tempo':
+          return ((statsB.totalStudyTime || 0) - (statsA.totalStudyTime || 0)) * directionMultiplier;
+        case 'questoes':
+          return (((statsB.correctQuestions || 0) + (statsB.incorrectQuestions || 0)) - ((statsA.correctQuestions || 0) + (statsA.incorrectQuestions || 0))) * directionMultiplier;
+        case 'acerto':
+          return ((statsB.performance || 0) - (statsA.performance || 0)) * directionMultiplier;
+        default:
+          return 0;
+      }
+    });
+    return entries;
+  }, [stats.subjectPerformance, performanceSortColumn, performanceSortDirection]);
 
   const handleAddClick = () => {
     setIsRegisterModalOpen(true);
@@ -319,21 +352,29 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 w-full mt-6">
-        <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6 md:col-span-3 flex flex-col">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-6 w-full mt-6">
+        <div className="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6 md:col-span-4 flex flex-col">
           <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4">Painel de Desempenho</h2>
           <div className="overflow-x-auto overflow-y-auto flex-1">
             <table className="min-w-full bg-white dark:bg-gray-800 table-fixed">
               <thead className="bg-gray-100 dark:bg-gray-900">
                 <tr>
-                  <th className="py-3 px-4 text-left text-sm font-semibold text-gray-600 dark:text-gold-200 uppercase tracking-wider">Disciplina</th>
-                  <th className="py-3 px-4 text-center text-sm font-semibold text-gray-600 dark:text-gold-200 uppercase tracking-wider">Tempo</th>
-                  <th className="py-3 px-4 text-center text-sm font-semibold text-gray-600 dark:text-gold-200 uppercase tracking-wider">Questões</th>
-                  <th className="py-3 px-4 text-center text-sm font-semibold text-gray-600 dark:text-gold-200 uppercase tracking-wider" style={{ width: '25%' }}>Acerto %</th>
+                  <th onClick={() => handlePerformanceSort('disciplina')} className="py-3 px-4 text-left text-sm font-semibold text-gray-600 dark:text-gold-200 uppercase tracking-wider cursor-pointer select-none hover:text-gold-600 dark:hover:text-white" style={{ width: '40%' }}>
+                    <span className="whitespace-nowrap">Disciplina{performanceSortColumn === 'disciplina' && (performanceSortDirection === 'desc' ? ' ▾' : ' ▴')}</span>
+                  </th>
+                  <th onClick={() => handlePerformanceSort('tempo')} className="py-3 px-4 text-center text-sm font-semibold text-gray-600 dark:text-gold-200 uppercase tracking-wider cursor-pointer select-none hover:text-gold-600 dark:hover:text-white" style={{ width: '18%' }}>
+                    <span className="whitespace-nowrap">Tempo{performanceSortColumn === 'tempo' && (performanceSortDirection === 'desc' ? ' ▾' : ' ▴')}</span>
+                  </th>
+                  <th onClick={() => handlePerformanceSort('questoes')} className="py-3 px-4 text-center text-sm font-semibold text-gray-600 dark:text-gold-200 uppercase tracking-wider cursor-pointer select-none hover:text-gold-600 dark:hover:text-white" style={{ width: '18%' }}>
+                    <span className="whitespace-nowrap">Questões{performanceSortColumn === 'questoes' && (performanceSortDirection === 'desc' ? ' ▾' : ' ▴')}</span>
+                  </th>
+                  <th onClick={() => handlePerformanceSort('acerto')} className="py-3 px-4 text-center text-sm font-semibold text-gray-600 dark:text-gold-200 uppercase tracking-wider cursor-pointer select-none hover:text-gold-600 dark:hover:text-white" style={{ width: '24%' }}>
+                    <span className="whitespace-nowrap">Acerto %{performanceSortColumn === 'acerto' && (performanceSortDirection === 'desc' ? ' ▾' : ' ▴')}</span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {Object.entries(stats.subjectPerformance).map(([subjectName, subjectStats], index) => {
+                {sortedSubjectPerformance.map(([subjectName, subjectStats], index) => {
                   const performancePercentage = subjectStats.performance || 0;
 
                   const getBarColor = (percentage) => {

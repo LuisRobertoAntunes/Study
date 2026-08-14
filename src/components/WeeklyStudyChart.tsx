@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -16,6 +16,17 @@ import {
 
 const WeeklyStudyChart = ({ dailyStudyHours, dailyQuestionStats }) => {
   const [viewMode, setViewMode] = useState('time'); // 'time' or 'questions'
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const checkTheme = () => setIsDarkMode(document.documentElement.classList.contains('dark'));
+    checkTheme();
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
+  const axisTextColor = isDarkMode ? '#9ca3af' : '#4b5563'; // gray-400 no escuro, gray-700 no claro
 
   if (!dailyStudyHours || !dailyQuestionStats) {
     return (
@@ -47,6 +58,10 @@ const WeeklyStudyChart = ({ dailyStudyHours, dailyQuestionStats }) => {
           weeklyData[i] = parseFloat((dailyData[dateString] || 0).toFixed(1)); // Directly use the value for hours
         } else if (dataKey === 'total') {
           weeklyData[i] = dailyData[dateString].total || 0; // Use total for questions
+        } else if (dataKey === 'correct') {
+          weeklyData[i] = dailyData[dateString].correct || 0;
+        } else if (dataKey === 'incorrect') {
+          weeklyData[i] = dailyData[dateString].incorrect || 0;
         }
       }
     }
@@ -70,11 +85,20 @@ const WeeklyStudyChart = ({ dailyStudyHours, dailyQuestionStats }) => {
     labels: ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'],
     datasets: [
       {
-        label: 'Questões Resolvidas',
-        data: processChartData(dailyQuestionStats, 'total'), 
-        backgroundColor: '#93c5fd',
-        borderColor: '#2563eb',
-        borderWidth: 1,
+        label: 'Acertos',
+        data: processChartData(dailyQuestionStats, 'correct'),
+        backgroundColor: '#60a5fa',
+        stack: 'questoes',
+        barPercentage: 0.6,
+        categoryPercentage: 0.7,
+      },
+      {
+        label: 'Erros',
+        data: processChartData(dailyQuestionStats, 'incorrect'),
+        backgroundColor: '#ef4444',
+        stack: 'questoes',
+        barPercentage: 0.6,
+        categoryPercentage: 0.7,
       },
     ],
   };
@@ -84,7 +108,9 @@ const WeeklyStudyChart = ({ dailyStudyHours, dailyQuestionStats }) => {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        display: false,
+        display: viewMode === 'questions',
+        position: 'bottom' as const,
+        labels: { color: axisTextColor, boxWidth: 12, usePointStyle: true, pointStyle: 'rect' as const },
       },
       title: {
         display: false,
@@ -106,17 +132,19 @@ const WeeklyStudyChart = ({ dailyStudyHours, dailyQuestionStats }) => {
     },
     scales: {
       x: {
+        stacked: viewMode === 'questions',
         grid: {
           display: false,
         },
         ticks: {
-          color: '#4b5563', // gray-700
+          color: axisTextColor,
         },
       },
       y: {
         beginAtZero: true,
+        stacked: viewMode === 'questions',
         ticks: {
-          color: '#4b5563', // gray-700
+          color: axisTextColor,
           callback: function(value) {
             return viewMode === 'time' ? `${value}h` : value;
           }
@@ -156,7 +184,7 @@ const WeeklyStudyChart = ({ dailyStudyHours, dailyQuestionStats }) => {
         </div>
       </div>
       <div className="relative h-64"> {/* Altura fixa para o gráfico */}
-        <Bar data={viewMode === 'time' ? timeData : questionsData} options={options} />
+        <Bar key={viewMode} data={viewMode === 'time' ? timeData : questionsData} options={options} />
       </div>
     </div>
   );

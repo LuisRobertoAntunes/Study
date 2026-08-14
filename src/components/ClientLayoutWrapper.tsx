@@ -7,6 +7,7 @@ import { Chart, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointEl
 import { useSession } from 'next-auth/react';
 import { useRouter, usePathname } from 'next/navigation';
 
+Chart.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title, BarElement);
 
 export default function ClientLayoutWrapper({
   children,
@@ -16,11 +17,6 @@ export default function ClientLayoutWrapper({
   const { data: session, status } = useSession();
   const router = useRouter();
   const pathname = usePathname();
-
-
-  useEffect(() => {
-    Chart.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title, BarElement);
-  }, []);
 
   useEffect(() => {
     // Define public paths that don't require authentication

@@ -82,13 +82,15 @@ export interface PlanData {
 }
 
 export interface StudyCycleData {
-  studyCycle: any[] | null;
+  studyCycle: any;
   studyHours: string;
   weeklyQuestionsGoal: string;
   currentProgressMinutes: number;
   sessionProgressMap: { [key: string]: number };
   reminderNotes: any[];
   studyDays: string[];
+  completedCycles?: number;
+  cycleGenerationTimestamp?: number | null;
 }
 
 async function getUserDataDirectory(): Promise<string> {

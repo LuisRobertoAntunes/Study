@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { Radar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -11,72 +11,10 @@ import {
   Tooltip,
   Legend,
   Title,
-  Chart
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 
-
-
-// Plugin customizado para desenhar os rótulos curvados
-const curvedPointLabelsPlugin = {
-  id: 'curvedPointLabels',
-  afterDraw: (chart: Chart) => {
-    const { ctx, scales: { r } } = chart;
-
-    if (!r) {
-      return;
-    }
-
-    const labels = chart.data.labels;
-    if (!labels || labels.length === 0) {
-      return;
-    }
-
-    ctx.save();
-    const pointLabelFont = { size: 8, weight: 'bold' as const, family: 'Arial' };
-    ctx.font = `${pointLabelFont.weight} ${pointLabelFont.size}px ${pointLabelFont.family}`;
-
-    // Detecta o modo dark/light dinamicamente
-    const isDarkMode = document.documentElement.classList.contains('dark');
-    ctx.fillStyle = isDarkMode ? '#ffffff' : '#4B5563'; // Branco para Dark Mode, Cinza Escuro para Light Mode
-
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
-    const labelRadius = r.drawingArea - 5;
-
-    labels.forEach((label, index) => {
-      const angle = r.getIndexAngle(index) - (Math.PI / 4) - (35 * Math.PI / 180);
-      const text = label.toString().toUpperCase();
-      const characters = text.split('');
-      const characterSpacing = (text.length > 10) ? 0.02 : 0.03; // Espaçamento angular entre as letras
-
-      // Calcula a largura angular total da palavra
-      const totalTextAngularWidth = (characters.length - 1) * characterSpacing;
-
-      // Ajusta o ângulo inicial para centralizar a palavra no eixo
-      const startAngleForWord = angle - (totalTextAngularWidth / 2);
-
-      characters.forEach((char, i) => {
-        const charAngle = startAngleForWord + i * characterSpacing; // Usa o ângulo inicial ajustado
-        const x = r.xCenter + Math.cos(charAngle) * labelRadius;
-        const y = r.yCenter + Math.sin(charAngle) * labelRadius;
-
-        if (isNaN(x) || isNaN(y)) {
-          return;
-        }
-
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(charAngle + Math.PI / 2);
-        ctx.fillText(char, 0, 0);
-        ctx.restore();
-      });
-    });
-
-    ctx.restore();
-  }
-};
+ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend, Title);
 
 const CATEGORY_MAP: { [key: string]: string } = {
   teoria: 'TEORIA',
@@ -123,7 +61,8 @@ const CategoryHoursChart: React.FC<CategoryHoursChartProps> = ({ categoryStudyHo
     return () => observer.disconnect();
   }, []);
 
-  const chartTextColor = isDarkMode ? '#ffffff' : '#4B5563'; // Branco para Dark Mode, Cinza Escuro para Light Mode
+  const chartTextColor = isDarkMode ? '#9ca3af' : '#4B5563'; // gray-400 no escuro, gray-700 no claro
+  const gridColor = isDarkMode ? '#374151' : '#e5e7eb'; // gray-700 no escuro, gray-200 no claro
 
   const hasRealData = categoryStudyHours && Object.values(categoryStudyHours).some(value => value > 0);
   const dataToShow = hasRealData ? categoryStudyHours : EXAMPLE_DATA;
@@ -131,21 +70,33 @@ const CategoryHoursChart: React.FC<CategoryHoursChartProps> = ({ categoryStudyHo
   // Define a ordem correta e garante a sincronia
   const orderedCategories = ['teoria', 'revisao', 'questoes', 'leitura_lei', 'jurisprudencia'];
 
+  // Valores reais (em horas), usados nos rótulos e no tooltip.
+  const realValues = orderedCategories.map(key => dataToShow[key] || 0);
+
+  // Usamos a raiz quadrada apenas para POSICIONAR os pontos no radar.
+  // Quando uma categoria tem muito mais horas que as outras (ex.: Teoria),
+  // numa escala linear normal os valores menores ficam todos espremidos
+  // perto do centro e os rótulos se sobrepõem. A raiz quadrada comprime
+  // essa diferença visualmente (sem "mentir": quem tem mais horas continua
+  // maior no gráfico), deixando as categorias menores legíveis. Os valores
+  // exibidos nos rótulos e no tooltip continuam sendo os reais.
+  const plottedValues = realValues.map(hours => Math.sqrt(hours));
+
   const chartData = {
     labels: orderedCategories.map(key => CATEGORY_MAP[key] || key),
     datasets: [{
       label: hasRealData ? 'Horas de Estudo' : 'Horas de Estudo (Exemplo)',
-      data: orderedCategories.map(key => dataToShow[key] || 0),
-      backgroundColor: '#1e40af',
-      borderColor: '#1e40af',
-      pointBackgroundColor: '#1e40af',
-      pointBorderColor: '#fff',
-      pointHoverBackgroundColor: '#fff',
-      pointHoverBorderColor: '#1e40af',
-      pointRadius: 5,
-      pointHoverRadius: 9,
+      data: plottedValues,
+      backgroundColor: 'rgba(59, 130, 246, 0.15)', // gold-500 translúcido
+      borderColor: '#3b82f6', // gold-500
+      pointBackgroundColor: '#3b82f6',
+      pointBorderColor: '#ffffff',
+      pointHoverBackgroundColor: '#ffffff',
+      pointHoverBorderColor: '#3b82f6',
+      pointRadius: 3,
+      pointHoverRadius: 6,
       fill: true,
-      borderWidth: 3,
+      borderWidth: 2,
     }],
   };
 
@@ -154,35 +105,25 @@ const CategoryHoursChart: React.FC<CategoryHoursChartProps> = ({ categoryStudyHo
     maintainAspectRatio: false,
     scales: {
       r: {
-        angleLines: { display: true, color: chartTextColor, lineWidth: 1 },
-        grid: { circular: true, color: chartTextColor },
+        angleLines: { display: true, color: gridColor, lineWidth: 1 },
+        grid: { circular: false, color: gridColor },
         suggestedMin: 0,
         ticks: {
           display: false,
         },
         pointLabels: {
-          display: false,
+          display: true,
+          color: chartTextColor,
+          font: { size: 11, weight: '600' as const },
         },
       },
     },
     plugins: {
       title: {
         display: false,
-        text: hasRealData ? 'Distribuição de Horas por Categoria' : 'Exemplo de Gráfico de Categorias',
-        font: { size: 18, weight: 'bold' as const },
-        color: chartTextColor,
-        padding: {
-          top: 10,
-          bottom: 20,
-        }
       },
       legend: {
-        display: true,
-        position: 'bottom' as const,
-        labels: {
-          font: { size: 16 },
-          color: chartTextColor
-        }
+        display: false,
       },
       tooltip: {
         enabled: true,
@@ -190,22 +131,19 @@ const CategoryHoursChart: React.FC<CategoryHoursChartProps> = ({ categoryStudyHo
         titleFont: { size: 14, weight: 'bold' as const },
         bodyFont: { size: 12 },
         callbacks: {
-          label: (context: any) => formatTimeLabel(context.raw as number),
+          label: (context: any) => formatTimeLabel(realValues[context.dataIndex] ?? 0),
         },
       },
       datalabels: {
-        display: true,
-        formatter: (value: number) => formatTimeLabel(value),
-        color: chartTextColor,
-        backgroundColor: (context: any) => {
-          const isDarkMode = document.documentElement.classList.contains('dark');
-          return isDarkMode ? 'rgba(0, 0, 0, 0.5)' : 'rgba(255, 255, 255, 0.7)';
-        },
+        display: (context: any) => (realValues[context.dataIndex] ?? 0) > 0,
+        formatter: (_value: number, context: any) => formatTimeLabel(realValues[context.dataIndex] ?? 0),
+        color: '#ffffff',
+        backgroundColor: '#3b82f6', // gold-500
         borderRadius: 4,
-        padding: 4,
+        padding: { top: 3, bottom: 3, left: 6, right: 6 },
         font: {
-          weight: 'light' as const,
-          size: 14,
+          weight: 'bold' as const,
+          size: 12,
         },
       },
     },
@@ -213,7 +151,7 @@ const CategoryHoursChart: React.FC<CategoryHoursChartProps> = ({ categoryStudyHo
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <Radar data={chartData} options={chartOptions as any} plugins={[curvedPointLabelsPlugin, ChartDataLabels]} />
+      <Radar data={chartData} options={chartOptions as any} plugins={[ChartDataLabels]} />
     </div>
   );
 };

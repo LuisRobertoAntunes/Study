@@ -1547,6 +1547,16 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     await saveStudyRecord(selectedDataFile, record);
     setStudyRecords(prevRecords => prevRecords.map(r => (r.id === record.id ? record : r)));
 
+    // Remove as revisões antigas ligadas a este registro tanto do arquivo
+    // quanto do estado em memória. Antes, a remoção só acontecia em memória
+    // (setReviewRecords), então revisões antigas ficavam "órfãs" salvas no
+    // arquivo — reaparecendo em outra sessão ou, se o id da nova revisão não
+    // coincidisse exatamente com o da antiga, ficando duplicadas (uma com a
+    // data antiga, outra com a nova).
+    const oldReviewsForThisRecord = reviewRecords.filter(r => r.studyRecordId === record.id);
+    for (const oldReview of oldReviewsForThisRecord) {
+      await deleteReviewRecordAction(selectedDataFile, oldReview.id);
+    }
     setReviewRecords(prevReviews => prevReviews.filter(r => r.studyRecordId !== record.id));
 
     if (record.reviewPeriods && record.reviewPeriods.length > 0) {
@@ -1577,17 +1587,29 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       }
       setReviewRecords(prevReviews => [...prevReviews, ...newReviewRecords]);
     }
-  }, [selectedDataFile]);
+  }, [selectedDataFile, reviewRecords]);
+
 
   const deleteStudyRecord = useCallback(async (id: string) => {
     if (!selectedDataFile) return;
     try {
       await deleteStudyRecordAction(selectedDataFile, id);
       setStudyRecords(prevRecords => prevRecords.filter(r => r.id !== id));
+
+      // Remove também as revisões agendadas para este registro — senão elas
+      // ficam "órfãs" (apontando pra um estudo que não existe mais) e continuam
+      // aparecendo na aba Revisões para sempre.
+      const orphanedReviews = reviewRecords.filter(r => r.studyRecordId === id);
+      for (const orphanedReview of orphanedReviews) {
+        await deleteReviewRecordAction(selectedDataFile, orphanedReview.id);
+      }
+      if (orphanedReviews.length > 0) {
+        setReviewRecords(prevReviews => prevReviews.filter(r => r.studyRecordId !== id));
+      }
     } catch (error) {
       console.error("Failed to delete study record:", error);
     }
-  }, [selectedDataFile]);
+  }, [selectedDataFile, reviewRecords]);
 
   const updateReviewRecord = useCallback(async (record: ReviewRecord) => {
     if (!selectedDataFile) return;
@@ -2005,7 +2027,7 @@ const clientData = {
   // acompanhar, evitando que o usuário veja dois pesos diferentes para a mesma
   // matéria. O cálculo da nota ponderada continua priorizando o peso salvo em
   // cada simulado (não depende dessa sincronização para estar correto).
-  const syncSubjectWeightsWithPlan = useCallback(async (subjects: { name: string; weight: number }[]) => {
+  const syncSubjectWeightsWithPlan = useCallback(async (subjects: { subjectName: string; weight: number }[]) => {
     if (!selectedDataFile) return;
     const currentPlanIndex = availablePlans.indexOf(selectedDataFile);
     const currentPlan = studyPlans[currentPlanIndex];
@@ -2013,7 +2035,7 @@ const clientData = {
 
     let planChanged = false;
     for (const simSubject of subjects) {
-      const planSubject = currentPlan.subjects.find(s => s.subject === simSubject.name) as any;
+      const planSubject = currentPlan.subjects.find((s: any) => s.subject === simSubject.subjectName) as any;
       if (!planSubject) continue; // Matéria não existe mais no plano atual, ignora.
 
       const planWeight = Number(planSubject.weight) || 1;
@@ -2030,7 +2052,7 @@ const clientData = {
         });
         planChanged = true;
       } catch (error) {
-        console.error(`Falha ao sincronizar peso da matéria "${simSubject.name}" com o plano:`, error);
+        console.error(`Falha ao sincronizar peso da matéria "${simSubject.subjectName}" com o plano:`, error);
       }
     }
 

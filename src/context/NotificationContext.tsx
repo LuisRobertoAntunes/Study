@@ -2,16 +2,25 @@
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 
+type NotificationType = 'success' | 'error' | 'info' | 'warning';
+
 interface NotificationContextType {
-  showNotification: (message: string, type: 'success' | 'error') => void;
+  showNotification: (message: string, type: NotificationType) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-export const NotificationProvider = ({ children }: { children: ReactNode }) => {
-  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+const notificationStyles: Record<NotificationType, string> = {
+  success: 'bg-green-500',
+  error: 'bg-red-500',
+  warning: 'bg-amber-500',
+  info: 'bg-gold-500',
+};
 
-  const showNotification = useCallback((message: string, type: 'success' | 'error') => {
+export const NotificationProvider = ({ children }: { children: ReactNode }) => {
+  const [notification, setNotification] = useState<{ message: string; type: NotificationType } | null>(null);
+
+  const showNotification = useCallback((message: string, type: NotificationType) => {
     setNotification({ message, type });
     setTimeout(() => {
       setNotification(null);
@@ -23,7 +32,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       {children}
       {notification && (
         <div className={`fixed bottom-4 right-4 p-4 rounded-lg shadow-lg text-white z-50 transition-opacity duration-300 ease-out opacity-100
-          ${notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
+          ${notificationStyles[notification.type]}`}>
           {notification.message}
         </div>
       )}

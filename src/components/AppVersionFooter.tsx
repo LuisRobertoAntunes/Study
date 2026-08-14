@@ -47,7 +47,7 @@ export default function AppVersionFooter() {
       {updateVersion && (
         <div
           onClick={handleInstallClick}
-          className={`fixed bottom-0 left-0 right-0 z-40 text-center text-xs py-1.5 text-white transition-colors ${
+          className={`fixed bottom-6 left-0 right-0 z-40 text-center text-xs py-1.5 text-white transition-colors ${
             updateReady ? 'bg-green-600 hover:bg-green-500 cursor-pointer' : 'bg-gray-600'
           }`}
         >
@@ -60,11 +60,11 @@ export default function AppVersionFooter() {
         </div>
       )}
 
-      {version && (
-        <div className="fixed bottom-1 right-2 z-30 text-[11px] text-gray-400 dark:text-gray-500 select-none pointer-events-none">
-          v{version}
-        </div>
-      )}
+      {/* Barra de status fixa no rodapé, no mesmo esquema de cor da sidebar (bg-gold-500 / dark:bg-gray-800) */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 h-6 flex items-center justify-between px-3 text-[11px] bg-gold-500 dark:bg-gray-800 text-white/80 border-t border-white/10 dark:border-gray-700 select-none">
+        <span>Estudei</span>
+        {version && <span>v{version}</span>}
+      </div>
     </>
   );
 }

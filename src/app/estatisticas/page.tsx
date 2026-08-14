@@ -11,7 +11,8 @@ import {
   BsChevronRight, 
   BsGraphUp, 
   BsTable, 
-  BsLightningCharge 
+  BsLightningCharge,
+  BsCalendar3
 } from 'react-icons/bs';
 import ChartComponents from '../../components/ChartComponents';
 import StudyRegisterModal from '../../components/StudyRegisterModal';
@@ -33,6 +34,10 @@ import {
 } from 'chart.js';
 import 'chartjs-adapter-date-fns';
 import CategoryHoursChart from '../../components/CategoryHoursChart';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import '../datepicker-custom.css';
 
 import { HierarchicalPerformanceNode, StudyRecord } from '../../context/DataContext';
 
@@ -53,6 +58,13 @@ ChartJS.register(
 const formatDateBR = (dateStr: string): string => {
   const [y, m, d] = dateStr.split('-');
   return `${d}/${m}/${y}`;
+};
+
+const periodPresetLabels: Record<'7d' | '30d' | '90d' | '365d', string> = {
+  '7d': 'Últimos 7 dias',
+  '30d': 'Últimos 30 dias',
+  '90d': 'Últimos 90 dias',
+  '365d': 'Último ano',
 };
 
 export default function Estatisticas() {
@@ -76,6 +88,11 @@ export default function Estatisticas() {
   const [subjectSortOrder, setSubjectSortOrder] = React.useState('desc');
   const [activeTab, setActiveTab] = React.useState<'geral' | 'desempenho' | 'evolucao'>('geral');
   const [isDarkMode, setIsDarkMode] = React.useState(false);
+  const [evolutionPreset, setEvolutionPreset] = React.useState<'7d' | '30d' | '90d' | '365d' | 'custom'>('7d');
+  const [evolutionCustomStart, setEvolutionCustomStart] = React.useState<Date | null>(null);
+  const [evolutionCustomEnd, setEvolutionCustomEnd] = React.useState<Date | null>(null);
+  const [isPeriodPresetOpen, setIsPeriodPresetOpen] = React.useState(false);
+  const periodPresetRef = React.useRef<HTMLDivElement>(null);
 
   const daysUntilExam = React.useMemo(() => {
     const dataProva = stats.planMetadata?.data_prova;
@@ -140,7 +157,17 @@ const sortedDailyStudy = React.useMemo(() => {
     return () => observer.disconnect();
   }, []);
 
-  const chartTextColor = isDarkMode ? '#ffffff' : '#4B5563';
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (periodPresetRef.current && !periodPresetRef.current.contains(event.target as Node)) {
+        setIsPeriodPresetOpen(false);
+      }
+    };
+    if (isPeriodPresetOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isPeriodPresetOpen]);
+
+  const chartTextColor = isDarkMode ? '#9ca3af' : '#4B5563';
 
   
 
@@ -155,33 +182,81 @@ const sortedDailyStudy = React.useMemo(() => {
     }
     return entries;
   }, [stats.subjectStudyHours, subjectSortOrder]);
-  const lineData = {
-    labels: Object.keys(stats.dailyQuestionStats ?? {}).sort((a, b) => new Date(a).getTime() - new Date(b).getTime()),
+
+  // Intervalo de datas selecionado nos filtros da aba Evolução (padrão: últimos 7 dias).
+  const evolutionDateRange = React.useMemo(() => {
+    const startOfDay = (d: Date) => { const c = new Date(d); c.setHours(0, 0, 0, 0); return c; };
+    const endOfDay = (d: Date) => { const c = new Date(d); c.setHours(23, 59, 59, 999); return c; };
+
+    if (evolutionPreset === 'custom') {
+      if (!evolutionCustomStart || !evolutionCustomEnd) return null;
+      return { start: startOfDay(evolutionCustomStart), end: endOfDay(evolutionCustomEnd) };
+    }
+
+    const days = evolutionPreset === '7d' ? 7 : evolutionPreset === '30d' ? 30 : evolutionPreset === '90d' ? 90 : 365;
+    const end = endOfDay(new Date());
+    const start = startOfDay(new Date());
+    start.setDate(start.getDate() - (days - 1));
+    return { start, end };
+  }, [evolutionPreset, evolutionCustomStart, evolutionCustomEnd]);
+
+  // Datas de dailyQuestionStats dentro do período selecionado, já ordenadas.
+  // Parse manual (substitui "-" por "/") para evitar o bug de fuso horário do new Date(string).
+  const filteredQuestionDates = React.useMemo(() => {
+    const allDates = Object.keys(stats.dailyQuestionStats ?? {});
+    const inRange = evolutionDateRange
+      ? allDates.filter(date => {
+          const d = new Date(date.replace(/-/g, '/'));
+          return d >= evolutionDateRange.start && d <= evolutionDateRange.end;
+        })
+      : allDates;
+    return inRange.sort((a, b) => new Date(a.replace(/-/g, '/')).getTime() - new Date(b.replace(/-/g, '/')).getTime());
+  }, [stats.dailyQuestionStats, evolutionDateRange]);
+
+  // Totais do período selecionado: Total de Resoluções, Certas, Erradas e Taxa de Acerto.
+  const evolutionQuestionSummary = React.useMemo(() => {
+    const data = stats.dailyQuestionStats ?? {};
+    let totalCorrect = 0, totalIncorrect = 0, totalResolutions = 0;
+    filteredQuestionDates.forEach(date => {
+      totalCorrect += data[date]?.correct || 0;
+      totalIncorrect += data[date]?.incorrect || 0;
+      totalResolutions += data[date]?.total || 0;
+    });
+    const accuracyRate = totalResolutions > 0 ? (totalCorrect / totalResolutions) * 100 : 0;
+    return { totalCorrect, totalIncorrect, totalResolutions, accuracyRate };
+  }, [stats.dailyQuestionStats, filteredQuestionDates]);
+
+  const questionChartData = {
+    labels: filteredQuestionDates,
     datasets: [
       {
-        label: 'Acertos Diários',
-        data: Object.keys(stats.dailyQuestionStats ?? {}).sort((a, b) => new Date(a).getTime() - new Date(b).getTime()).map(date => (stats.dailyQuestionStats ?? {})[date].correct),
-        fill: false,
-        borderColor: '#1e40af',
-        tension: 0.1,
+        label: 'Acertos',
+        data: filteredQuestionDates.map(date => (stats.dailyQuestionStats ?? {})[date].correct),
+        backgroundColor: '#60a5fa',
+        borderRadius: 0,
+        stack: 'questoes',
+        barPercentage: 0.6,
+        categoryPercentage: 0.7,
       },
       {
-        label: 'Erros Diários',
-        data: Object.keys(stats.dailyQuestionStats ?? {}).sort((a, b) => new Date(a).getTime() - new Date(b).getTime()).map(date => (stats.dailyQuestionStats ?? {})[date].incorrect),
-        fill: false,
-        borderColor: '#ff053bff',
-        tension: 0.1,
+        label: 'Erros',
+        data: filteredQuestionDates.map(date => (stats.dailyQuestionStats ?? {})[date].incorrect),
+        backgroundColor: '#ef4444',
+        borderRadius: 4,
+        stack: 'questoes',
+        barPercentage: 0.6,
+        categoryPercentage: 0.7,
       },
     ],
   };
 
-  const lineOptions = {
+  const questionChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: 'top' as const,
-        labels: { color: chartTextColor }
+        position: 'bottom' as const,
+        labels: { color: chartTextColor, boxWidth: 12, usePointStyle: true, pointStyle: 'rect' as const }
       },
       zoom: {
         pan: { enabled: true, mode: 'x' as const },
@@ -190,17 +265,26 @@ const sortedDailyStudy = React.useMemo(() => {
           pinch: { enabled: true },
           mode: 'x' as const,
         }
-      }
+      },
+      datalabels: {
+        display: (context: any) => (context.dataset.data[context.dataIndex] ?? 0) > 0,
+        color: '#ffffff',
+        font: { weight: 'bold' as const, size: 13 },
+        anchor: 'center' as const,
+        align: 'center' as const,
+      },
     },
     scales: {
       x: {
         type: 'time',
-        time: { unit: 'day', displayFormats: { day: 'dd/MM/yyyy' } },
+        time: { unit: 'day', displayFormats: { day: 'dd/MM/yyyy' }, tooltipFormat: 'dd/MM/yyyy' },
+        stacked: true,
         ticks: { color: chartTextColor },
-        grid: { color: isDarkMode ? '#374151' : '#D1D5DB' }
+        grid: { display: false }
       },
       y: {
         beginAtZero: true,
+        stacked: true,
         ticks: { color: chartTextColor },
         grid: { color: isDarkMode ? '#374151' : '#D1D5DB' }
       },
@@ -627,8 +711,11 @@ return [
   )}
 </div>
               </div>
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md h-[500px]">
-                <CategoryHoursChart categoryStudyHours={stats.categoryStudyHours} />
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md h-[500px] flex flex-col">
+                <h3 className="text-sm font-bold text-gray-400 uppercase mb-4 flex-shrink-0">Categorias x Horas de Estudo</h3>
+                <div className="flex-1 min-h-0 relative">
+                  <CategoryHoursChart categoryStudyHours={stats.categoryStudyHours} />
+                </div>
               </div>
             </div>
             
@@ -728,8 +815,8 @@ return [
 
         {activeTab === 'evolucao' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border-l-4 border-gold-500 md:col-span-1">
+            <div className="grid grid-cols-1 gap-6">
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border-l-4 border-gold-500">
                 <h3 className="text-sm font-bold text-gray-400 uppercase mb-2">Gap de Performance</h3>
                 <div className="flex items-end gap-2">
                   <span className={`text-4xl font-black ${stats.performanceGap >= 0 ? 'text-green-500' : 'text-red-500'}`}>
@@ -743,7 +830,126 @@ return [
 
               </div>
             </div>
-          
+
+           <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-md flex flex-col overflow-hidden">
+  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6 flex-shrink-0">
+    <h3 className="font-bold text-lg">
+      Histórico de Questões
+    </h3>
+
+    <div className="flex flex-wrap items-center gap-3">
+      <DatePicker
+        selectsRange
+        monthsShown={2}
+        startDate={evolutionCustomStart}
+        endDate={evolutionCustomEnd}
+        onChange={(dates: [Date | null, Date | null]) => {
+          const [start, end] = dates;
+          setEvolutionCustomStart(start);
+          setEvolutionCustomEnd(end);
+          if (start && end) setEvolutionPreset('custom');
+        }}
+        dateFormat="dd/MM/yyyy"
+        withPortal
+        customInput={
+          <button
+            type="button"
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors bg-white dark:bg-gray-700 ${evolutionPreset === 'custom' ? 'border-gold-500 ring-2 ring-gold-500 text-gray-800 dark:text-gray-100' : 'border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-300'}`}
+          >
+            <span>
+              {evolutionCustomStart && evolutionCustomEnd
+                ? `${evolutionCustomStart.toLocaleDateString('pt-BR')} - ${evolutionCustomEnd.toLocaleDateString('pt-BR')}`
+                : 'Selecione o período'}
+            </span>
+            <BsCalendar3 className="text-gray-400" />
+          </button>
+        }
+      />
+
+      <div className="relative" ref={periodPresetRef}>
+        <button
+          type="button"
+          onClick={() => setIsPeriodPresetOpen(!isPeriodPresetOpen)}
+          className={`flex items-center justify-between gap-3 px-4 py-2 rounded-lg text-sm font-semibold min-w-[160px] bg-gold-600 text-white dark:bg-gold-700 hover:bg-gold-700 dark:hover:bg-gold-600 transition-colors ${isPeriodPresetOpen ? 'ring-2 ring-gold-300' : ''}`}
+        >
+          <span>{evolutionPreset === 'custom' ? 'Personalizado' : periodPresetLabels[evolutionPreset]}</span>
+          <BsChevronDown className={`transition-transform ${isPeriodPresetOpen ? 'rotate-180' : ''}`} />
+        </button>
+
+        {isPeriodPresetOpen && (
+          <div className="absolute right-0 z-20 mt-1 w-full min-w-[160px] bg-white dark:bg-gray-800 shadow-lg rounded-md py-1 ring-1 ring-black ring-opacity-5">
+            {([
+              { key: '7d', label: 'Últimos 7 dias' },
+              { key: '30d', label: 'Últimos 30 dias' },
+              { key: '90d', label: 'Últimos 90 dias' },
+              { key: '365d', label: 'Último ano' },
+            ] as const).map(({ key, label }) => (
+              <div
+                key={key}
+                onClick={() => {
+                  setEvolutionPreset(key);
+                  setEvolutionCustomStart(null);
+                  setEvolutionCustomEnd(null);
+                  setIsPeriodPresetOpen(false);
+                }}
+                className={`px-4 py-2 text-sm cursor-pointer select-none ${evolutionPreset === key ? 'bg-gold-50 dark:bg-gold-900/30 text-gold-600 dark:text-gold-400 font-semibold' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+              >
+                {label}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+
+  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 flex-shrink-0">
+    <div className="bg-gray-50 dark:bg-gray-900/40 rounded-lg p-3 text-center">
+      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Total de Resoluções</p>
+      <p className="text-xl font-bold text-gray-800 dark:text-gray-100 mt-1">{evolutionQuestionSummary.totalResolutions}</p>
+    </div>
+    <div className="bg-gray-50 dark:bg-gray-900/40 rounded-lg p-3 text-center">
+      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Resoluções Certas</p>
+      <p className="text-xl font-bold text-green-500 mt-1">{evolutionQuestionSummary.totalCorrect}</p>
+    </div>
+    <div className="bg-gray-50 dark:bg-gray-900/40 rounded-lg p-3 text-center">
+      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Resoluções Erradas</p>
+      <p className="text-xl font-bold text-red-500 mt-1">{evolutionQuestionSummary.totalIncorrect}</p>
+    </div>
+    <div className="bg-gray-50 dark:bg-gray-900/40 rounded-lg p-3 text-center">
+      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Taxa de Acerto</p>
+      <p className="text-xl font-bold text-gold-500 mt-1">{evolutionQuestionSummary.accuracyRate.toFixed(1)}%</p>
+    </div>
+  </div>
+
+  <div className="h-[320px] relative flex-shrink-0">
+    {chartJsLoaded && (
+      <Bar
+        data={questionChartData}
+        plugins={[ChartDataLabels]}
+        options={{
+          ...questionChartOptions,
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            ...questionChartOptions.scales,
+            x: {
+              ...questionChartOptions.scales.x,
+              ticks: {
+                ...questionChartOptions.scales.x.ticks,
+                maxRotation: 0,
+                minRotation: 0,
+                autoSkip: true,
+                maxTicksLimit: 8,
+              },
+            },
+          },
+        }}
+      />
+    )}
+  </div>
+</div>
+
             <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-md h-[450px] flex flex-col overflow-hidden">
   <h3 className="font-bold text-lg mb-6 flex-shrink-0">
     Histórico de Simulados
@@ -794,38 +1000,6 @@ return [
     />
   )}
 </div>
-</div>
-
-           <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-md h-[450px] flex flex-col overflow-hidden">
-  <h3 className="font-bold text-lg mb-6 flex-shrink-0">
-    Histórico de Questões
-  </h3>
-
-  <div className="flex-1 min-h-0 relative">
-    {chartJsLoaded && (
-      <Line
-        data={lineData}
-        options={{
-          ...lineOptions,
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            ...lineOptions.scales,
-            x: {
-              ...lineOptions.scales.x,
-              ticks: {
-                ...lineOptions.scales.x.ticks,
-                maxRotation: 0,
-                minRotation: 0,
-                autoSkip: true,
-                maxTicksLimit: 8,
-              },
-            },
-          },
-        }}
-      />
-    )}
-  </div>
 </div>
           </div>
         )}

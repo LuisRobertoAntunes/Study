@@ -66,7 +66,7 @@ const FloatingStopwatchButton: React.FC<FloatingStopwatchButtonProps> = ({ isVis
       `}</style>
       {/* Floating Action Button */}
       {isVisible && (
-        <button onClick={openStopwatchModal} className="fixed bottom-4 right-4 bg-gold-500 hover:bg-gold-600 text-white p-4 rounded-full shadow-lg z-50 animate-float">
+        <button onClick={openStopwatchModal} className="fixed bottom-10 right-4 bg-gold-500 hover:bg-gold-600 text-white p-4 rounded-full shadow-lg z-50 animate-float">
           <FaStopwatch className="h-6 w-6" />
         </button>
       )}
