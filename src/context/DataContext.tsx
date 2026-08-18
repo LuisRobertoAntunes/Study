@@ -726,7 +726,15 @@ const calculateStats = async (
       const isStudyDay = studyDayNums.has(d.getDay());
       const studied = allStudiedDays.has(dateStr);
       let status = 'inactive';
-      if (isActive) status = isStudyDay ? (studied ? 'studied' : 'failed') : 'rest';
+      if (isActive) {
+        if (isStudyDay) {
+          status = studied ? 'studied' : 'failed';
+        } else {
+          // Dia de folga: se mesmo assim houve estudo, conta como estudado
+          // (mantendo a marcação visual de que era um dia de folga).
+          status = studied ? 'rest_studied' : 'rest';
+        }
+      }
       consistencyDaysData.push({ date: dateStr, status, active: isActive });
     }
   }
@@ -838,7 +846,7 @@ interface DataContextType {
   reviewRecords: ReviewRecord[];
   simuladoRecords: SimuladoRecord[];
   stats: Stats;
-  addStudyRecord: (record: Omit<StudyRecord, 'id' | 'subjectId'> & { subject: string }) => Promise<void>;
+  addStudyRecord: (record: Omit<StudyRecord, 'id' | 'subjectId'> & { subject: string }, linkedReviewId?: string) => Promise<void>;
   addSimuladoRecord: (record: Omit<SimuladoRecord, 'id'>) => Promise<void>;
   updateStudyRecord: (record: StudyRecord) => Promise<void>;
   updateSimuladoRecord: (record: SimuladoRecord) => Promise<void>;
@@ -1037,8 +1045,11 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     }
 
     let totalProgressMinutes = 0;
+    // Revisões marcadas para "Contabilizar no Planejamento" entram nas estatísticas gerais
+    // (constância, horas estudadas, questões etc.), mas NÃO devem descontar horas do ciclo
+    // de estudos — só teoria/questões/leitura de lei/jurisprudência afetam o ciclo.
     const sortedRecords = [...currentStudyRecords]
-      .filter(record => record.countInPlanning)
+      .filter(record => record.countInPlanning && record.category !== 'revisao')
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     sortedRecords.forEach(record => {
@@ -1426,7 +1437,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [isAnimatingCompletion, studyRecords, studyCycle, showNotification]);
 
-  const addStudyRecord = useCallback(async (record: Omit<StudyRecord, 'id' | 'subjectId'> & { subject: string }) => {
+  const addStudyRecord = useCallback(async (record: Omit<StudyRecord, 'id' | 'subjectId'> & { subject: string }, linkedReviewId?: string) => {
     if (!selectedDataFile) {
       showNotification('Nenhum plano de estudos selecionado.', 'error');
       return;
@@ -1461,38 +1472,52 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       await saveStudyRecord(selectedDataFile, newRecord);
       showNotification('Registro de estudo salvo com sucesso!', 'success');
 
-      // Lógica para dar baixa automática em revisões pendentes (hoje ou atrasadas)
-      // se o estudo for da categoria 'revisao'
+      // Lógica para dar baixa em revisões pendentes quando o estudo registrado é da categoria 'revisao'.
+      // Esta é a ÚNICA fonte de verdade para "concluir" uma revisão — nenhum outro lugar do app
+      // deve chamar updateReviewRecord para setar completedDate, para não duplicar/perder o vínculo.
       if (newRecord.category === 'revisao') {
-        const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
-        
-        // Encontra revisões pendentes para a mesma matéria e tópico que estão para hoje ou atrasadas
-        const pendingReviews = reviewRecords.filter(r => 
-          r.subjectId === newRecord.subjectId && 
-          r.topic === newRecord.topic && 
-          !r.completedDate && 
-          !r.ignored &&
-          r.scheduledDate <= todayStr
-        );
+        let reviewToComplete: ReviewRecord | undefined;
 
-        if (pendingReviews.length > 0) {
-          // Ordena para pegar a mais antiga primeiro
-          const sortedPending = [...pendingReviews].sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
-          const reviewToComplete = sortedPending[0];
-          
-          // Atualiza a revisão para concluída
+        if (linkedReviewId) {
+          // Veio de um clique explícito em "Concluir" numa revisão específica (tela de Revisões).
+          // Usa exatamente essa revisão, evitando ambiguidade quando há mais de uma pendente
+          // para a mesma matéria/tópico.
+          reviewToComplete = reviewRecords.find(r => r.id === linkedReviewId && !r.completedDate);
+        } else {
+          const now = new Date();
+          const todayStr = now.toISOString().split('T')[0];
+
+          // Encontra revisões pendentes para a mesma matéria e tópico que estão para hoje ou atrasadas
+          const pendingReviews = reviewRecords.filter(r =>
+            r.subjectId === newRecord.subjectId &&
+            r.topic === newRecord.topic &&
+            !r.completedDate &&
+            !r.ignored &&
+            r.scheduledDate <= todayStr
+          );
+
+          if (pendingReviews.length > 0) {
+            // Ordena para pegar a mais antiga primeiro
+            const sortedPending = [...pendingReviews].sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
+            reviewToComplete = sortedPending[0];
+          }
+        }
+
+        if (reviewToComplete) {
+          // Atualiza a revisão para concluída, vinculando ao registro de estudo que
+          // acabou de ser criado (é ele que contém os dados reais da revisão realizada).
           const updatedReview = {
             ...reviewToComplete,
             completedDate: newRecord.date,
+            ignored: false,
             studyRecordId: newRecord.id // Vincula ao novo registro de estudo
           };
 
-          setReviewRecords(prevReviews => 
+          setReviewRecords(prevReviews =>
             prevReviews.map(r => r.id === updatedReview.id ? updatedReview : r)
           );
           await saveReviewRecord(selectedDataFile, updatedReview);
-          showNotification(`Revisão agendada de "${newRecord.topic}" foi marcada como concluída automaticamente!`, 'success');
+          showNotification(`Revisão agendada de "${newRecord.topic}" foi marcada como concluída!`, 'success');
         }
       }
 
@@ -1528,7 +1553,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       console.error("Falha ao salvar o registro de estudo:", error);
       showNotification('Erro ao salvar o registro. Tente novamente.', 'error');
     }
-  }, [selectedDataFile, showNotification, stats.editalData]);
+  }, [selectedDataFile, showNotification, stats.editalData, reviewRecords]);
 
   const deleteSimuladoRecord = useCallback(async (id: string) => {
     if (!selectedDataFile) return;

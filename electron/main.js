@@ -118,6 +118,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    show: false, // só mostra depois de maximizar, evita "pulo" visual na tela
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -131,6 +132,11 @@ function createWindow() {
   });
 
   mainWindow.loadURL(startURL);
+
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.maximize(); // Abre como janela maximizada (com bordas/controles), não em tela cheia
+    mainWindow.show();
+  });
 
   mainWindow.on("close", (e) => {
     if (mainWindow) {

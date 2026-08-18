@@ -84,6 +84,7 @@ const StudyConsistencyTracker = ({
     let statusText = 'Não estudado';
     if (day.status === 'studied') statusText = 'Estudado';
     if (day.status === 'rest') statusText = 'Dia de folga';
+    if (day.status === 'rest_studied') statusText = 'Dia de folga (estudou mesmo assim)';
 
     return `${formattedDate}: ${statusText}`;
   };
@@ -97,6 +98,8 @@ const StudyConsistencyTracker = ({
         return 'bg-red-200';
       case 'rest':
         return 'bg-yellow-100 relative';
+      case 'rest_studied':
+        return 'bg-gold-500 relative';
       default:
         return 'bg-gray-200';
     }
@@ -125,7 +128,7 @@ const StudyConsistencyTracker = ({
             <div
               className={`w-full h-4 rounded-sm ${getDayClass(day)}`}
             >
-              {day.status === 'rest' && (
+              {(day.status === 'rest' || day.status === 'rest_studied') && (
                 <div className="absolute top-1/2 left-1/2 w-1.5 h-1.5 bg-black rounded-full -translate-x-1/2 -translate-y-1/2"></div>
               )}
             </div>

@@ -691,7 +691,18 @@ return [
             }
           }, 
           y: { 
-            ticks: { color: chartTextColor },
+            ticks: {
+              color: chartTextColor,
+              // Trunca o nome da matéria manualmente (em vez de deixar o
+              // Chart.js cortar do jeito dele, que corta o INÍCIO do texto
+              // nesse tipo de gráfico horizontal). Assim, o começo do nome
+              // sempre fica visível e só o final é cortado, com "…".
+              callback: function(value: any) {
+                const label = this.getLabelForValue(value);
+                const maxLen = 22;
+                return label.length > maxLen ? `${label.slice(0, maxLen - 1)}…` : label;
+              },
+            },
             grid: { display: false } 
           } 
         },

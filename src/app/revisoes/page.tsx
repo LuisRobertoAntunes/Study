@@ -5,6 +5,7 @@ import { useData, StudyRecord, ReviewRecord } from '../../context/DataContext';
 import { BsPlusCircleFill, BsPlayFill, BsCheckCircleFill, BsXCircleFill, BsClockFill, BsBookFill, BsCameraVideoFill, BsFileEarmarkTextFill, BsChatTextFill, BsTrashFill } from 'react-icons/bs';
 import PlanSelector from '../../components/PlanSelector';
 import StudyRegisterModal from '../../components/StudyRegisterModal';
+import ConfirmationModal from '../../components/ConfirmationModal';
 
 // Category display map for FilterModal
 const categoryDisplayMap: { [key: string]: string } = {
@@ -43,6 +44,7 @@ export default function Revisao() {
   const [activeTab, setActiveTab] = useState<'scheduled' | 'overdue' | 'ignored' | 'completed'>('scheduled');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [completingReviewId, setCompletingReviewId] = useState<string | null>(null);
+  const [reviewToDeleteId, setReviewToDeleteId] = useState<string | null>(null);
 
   // Handle adding a new study record
   const handleAddClick = () => {
@@ -55,14 +57,10 @@ export default function Revisao() {
     if (editingRecord && editingRecord.id) {
       updateStudyRecord(record);
     } else {
-      addStudyRecord(record);
-    }
-
-    if (completingReviewId) {
-      const recordToUpdate = reviewRecords.find(r => r.id === completingReviewId);
-      if (recordToUpdate) {
-        updateReviewRecord({ ...recordToUpdate, completedDate: new Date().toLocaleDateString('en-CA'), ignored: false });
-      }
+      // Passa o id da revisão sendo concluída (se houver) para que o vínculo
+      // studyRecordId -> novo registro seja feito em um único lugar (DataContext),
+      // evitando a duplicação na aba "Concluídas".
+      addStudyRecord(record, completingReviewId || undefined);
     }
 
     setIsModalOpen(false);
@@ -95,8 +93,13 @@ export default function Revisao() {
 
   // Handle deleting a review
   const handleDeleteReview = (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir esta revisão?')) {
-      deleteReviewRecord(id);
+    setReviewToDeleteId(id);
+  };
+
+  const confirmDeleteReview = () => {
+    if (reviewToDeleteId) {
+      deleteReviewRecord(reviewToDeleteId);
+      setReviewToDeleteId(null);
     }
   };
 
@@ -476,6 +479,16 @@ export default function Revisao() {
         onSave={handleSave}
         initialRecord={editingRecord}
         showDeleteButton={!!editingRecord?.id}
+      />
+
+      <ConfirmationModal
+        isOpen={!!reviewToDeleteId}
+        onClose={() => setReviewToDeleteId(null)}
+        onConfirm={confirmDeleteReview}
+        title="Excluir Revisão"
+        message="Tem certeza que deseja excluir esta revisão? Esta ação não pode ser desfeita."
+        confirmText="Excluir"
+        cancelText="Cancelar"
       />
     </div>
   );

@@ -27,3 +27,47 @@ body {
     @apply antialiased;
   }
 }
+
+/* Barra de rolagem personalizada, seguindo a paleta do app (Firefox) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #93c5fd transparent;
+}
+
+html.dark * {
+  scrollbar-color: #1e40af transparent;
+}
+
+/* Barra de rolagem personalizada (Chrome, Edge, navegador do Electron) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #93c5fd;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  transition: background-color 0.2s ease-in-out;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #3b82f6;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background-color: #1e40af;
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: #2563eb;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}

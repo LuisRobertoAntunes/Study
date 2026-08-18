@@ -294,6 +294,7 @@ export default function Planejamento() {
   const [subjectToAdd, setSubjectToAdd] = useState<string>('');
   const [durationToAdd, setDurationToAdd] = useState<number>(60);
   const [sessionToReset, setSessionToReset] = useState<StudySession | null>(null);
+  const [isResetCycleModalOpen, setIsResetCycleModalOpen] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -412,6 +413,15 @@ export default function Planejamento() {
     setStudyCycle(prevCycle => prevCycle ? prevCycle.filter(s => s.id !== id) : null);
   };
 
+  const handleResetCycle = () => {
+    setIsResetCycleModalOpen(true);
+  };
+
+  const confirmResetCycle = () => {
+    resetStudyCycle();
+    setIsResetCycleModalOpen(false);
+  };
+
   const handleDuplicateSession = (session: StudySession) => {
     if (!studyCycle) return;
     const newSession = { ...session, id: `${Date.now()}-session-copy` };
@@ -462,7 +472,10 @@ export default function Planejamento() {
       const [year, month, day] = record.date.split('-').map(Number);
       const recordTimestamp = new Date(Date.UTC(year, month - 1, day)).getTime();
 
-      return record.subjectId === sessionToReset.subjectId && recordTimestamp >= cycleStartTimestamp;
+      // Revisões não contam no progresso do ciclo, então resetar uma sessão não deve
+      // apagar o histórico de revisões dessa matéria — só os registros que de fato
+      // descontaram horas do ciclo.
+      return record.subjectId === sessionToReset.subjectId && record.category !== 'revisao' && recordTimestamp >= cycleStartTimestamp;
     });
 
     for (const record of recordsToDelete) {
@@ -558,7 +571,7 @@ export default function Planejamento() {
                 {isEditMode ? 'Concluir Edição' : 'Editar'}
               </span>
             </button>
-            <button onClick={resetStudyCycle} className="relative flex items-center px-4 py-2 bg-gold-500 text-white rounded-lg shadow-lg hover:bg-gold-600 transition-all duration-300 text-base font-semibold overflow-hidden group">
+            <button onClick={handleResetCycle} className="relative flex items-center px-4 py-2 bg-gold-500 text-white rounded-lg shadow-lg hover:bg-gold-600 transition-all duration-300 text-base font-semibold overflow-hidden group">
               <span className="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-gold-300 to-transparent opacity-80 transform -skew-x-30 transition-all duration-700 ease-in-out group-hover:left-[100%]"></span>
               <span className="relative flex items-center">
                 Remover
@@ -782,6 +795,16 @@ export default function Planejamento() {
         onConfirm={confirmResetSession}
         title="Resetar Progresso da Matéria"
         message={`Você tem certeza que deseja resetar o progresso de "${sessionToReset?.subject}"? Todos os registros de estudo para esta matéria no ciclo atual serão permanentemente excluídos.`}
+      />
+
+      <ConfirmationModal
+        isOpen={isResetCycleModalOpen}
+        onClose={() => setIsResetCycleModalOpen(false)}
+        onConfirm={confirmResetCycle}
+        title="Remover Ciclo de Estudos"
+        message="Tem certeza que deseja remover todo o ciclo de estudos atual? Esta ação não pode ser desfeita."
+        confirmText="Remover"
+        cancelText="Cancelar"
       />
     </div>
   );
