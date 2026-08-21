@@ -14,10 +14,10 @@ const nextConfig = {
   },
   transpilePackages: ['uuid'],
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
 };
 

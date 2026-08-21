@@ -69,6 +69,7 @@ const EditalPage = () => {
       await updateStudyRecord(updatedRecord);
     } else {
       const newRecord: Omit<StudyRecord, 'id'> = {
+        subjectId: stats?.editalData.find(subject => subject.subject === subjectText)?.id || '',
         date: new Date().toISOString().split('T')[0],
         subject: subjectText,
         topic: topicText,

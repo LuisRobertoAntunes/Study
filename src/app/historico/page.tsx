@@ -143,9 +143,15 @@ const HistoricoPage = () => {
         }
       }
 
-      // Filtro de tópicos (array)
-      if (filters.topics.length > 0 && !filters.topics.includes(record.topic)) {
-        return false;
+      // Filtro de tópicos: o modal exibe "matéria - tópico", enquanto o
+      // registro persiste matéria e tópico em campos separados. Também aceitamos
+      // o formato antigo, que armazenava somente o texto do tópico.
+      if (filters.topics.length > 0) {
+        const fullTopicLabel = `${record.subject} - ${record.topic}`;
+        const matchesTopic = filters.topics.some(selectedTopic =>
+          selectedTopic === fullTopicLabel || selectedTopic === record.topic
+        );
+        if (!matchesTopic) return false;
       }
 
       // Filtro de duração mínima (em minutos)

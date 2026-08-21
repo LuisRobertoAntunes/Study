@@ -687,7 +687,6 @@ return [
             ticks: { color: chartTextColor },
             grid: { 
               color: 'rgba(156, 163, 175, 0.15)', 
-              drawBorder: false 
             }
           }, 
           y: { 
@@ -955,7 +954,7 @@ return [
               },
             },
           },
-        }}
+        } as any}
       />
     )}
   </div>
@@ -995,7 +994,6 @@ return [
     ticks: { color: chartTextColor },
     grid: { 
       color: 'rgba(156, 163, 175, 0.15)', // Cinza com 15% de opacidade
-      drawBorder: false 
     }
   },
   x: {
@@ -1003,7 +1001,6 @@ return [
     grid: { 
       display: true, // Agora exibimos as linhas verticais
       color: 'rgba(156, 163, 175, 0.15)', // A MESMA cor do eixo Y
-      drawBorder: false
     }
   }
 }

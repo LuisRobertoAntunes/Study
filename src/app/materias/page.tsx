@@ -61,8 +61,16 @@ export default function MateriasPage() {
     allSubjects.forEach(subject => {
       const records = studyRecords.filter(r => r.subject === subject.name);
       const totalStudyTime = records.reduce((acc, r) => acc + (r.studyTime || 0), 0);
-      const correct = records.reduce((acc, r) => acc + (r.questions?.correct || 0), 0);
-      const incorrect = records.reduce((acc, r) => acc + ((r.questions?.total || 0) - (r.questions?.correct || 0)), 0);
+      const correct = records.reduce((acc, r) => {
+        if (r.questions && typeof r.questions.total === 'number') return acc + (Number(r.questions.correct) || 0);
+        return acc + (Number(r.correctQuestions) || 0);
+      }, 0);
+      const incorrect = records.reduce((acc, r) => {
+        if (r.questions && typeof r.questions.total === 'number') {
+          return acc + Math.max(0, (Number(r.questions.total) || 0) - (Number(r.questions.correct) || 0));
+        }
+        return acc + (Number(r.incorrectQuestions) || 0);
+      }, 0);
       const totalQuestions = correct + incorrect;
       const performance = totalQuestions > 0 ? Math.round((correct / totalQuestions) * 100) : 0;
       stats[subject.name] = { totalStudyTime, totalQuestions, performance };

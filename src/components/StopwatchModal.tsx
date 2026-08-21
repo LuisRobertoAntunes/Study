@@ -227,7 +227,7 @@ const StopwatchModal: React.FC<StopwatchModalProps> = ({ isOpen, onClose, onSave
   const timerProgress = initialTimerTime > 0 ? ((initialTimerTime - time) / initialTimerTime) * 100 : 0;
   const hasStarted = mode === 'cronometro' ? time > 0 || isRunning : time < initialTimerTime || isRunning;
 
-  const renderTopicOptions = (topics: any[], level = 0): JSX.Element[] => {
+  const renderTopicOptions = (topics: any[], level = 0): React.JSX.Element[] => {
     return topics.flatMap(topic => {
       const prefix = '\u00A0\u00A0'.repeat(level);
       const isParent = topic.sub_topics && topic.sub_topics.length > 0;

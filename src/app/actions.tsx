@@ -3,7 +3,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { getServerSession } from 'next-auth';
-import { authOptions } from './api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import { EditalTopic, EditalSubject as Subject } from '@/context/DataContext';
 import crypto from 'crypto';
 
@@ -16,6 +16,10 @@ export interface StudyRecord {
   topic: string;
   studyTime: number;
   questions?: { correct: number; total: number };
+  /** Campos legados mantidos para leitura de planos antigos. */
+  pagesRead?: number;
+  correctQuestions?: number;
+  incorrectQuestions?: number;
   pages: { start: number; end: number }[];
   videos: { title: string; start: string; end: string }[];
   material?: string;

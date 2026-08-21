@@ -13,6 +13,7 @@ import { FaInfoCircle } from 'react-icons/fa';
 interface Topic extends EditalTopic {}
 
 interface Subject {
+  id?: string;
   subject: string;
   topics: Topic[];
   color?: string;
@@ -34,12 +35,14 @@ interface Question {
   incorrect: number;
 }
 
+type TopicInput = Pick<EditalTopic, 'topic_text'>;
+
 interface StudyRegisterModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (record: StudyRecord) => void;
   initialRecord?: Partial<StudyRecord> | null;
-  topic?: { subject: string; topic: Topic } | null;
+  topic?: { subject: string; topic: TopicInput } | null;
   initialTime?: number;
   justification?: string | null;
   showDeleteButton?: boolean;
@@ -276,7 +279,7 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
         setSelectedDate(initialRecord.date || getLocalYYYYMMDD());
         const today = getLocalYYYYMMDD();
         const yesterday = getLocalYYYYMMDD(new Date(new Date().setDate(new Date().getDate() - 1)));
-        setShowDatePicker(initialRecord.date && initialRecord.date !== today && initialRecord.date !== yesterday);
+        setShowDatePicker(Boolean(initialRecord.date && initialRecord.date !== today && initialRecord.date !== yesterday));
         const total = initialRecord.questions?.total || 0;
         const correct = initialRecord.questions?.correct || 0;
         setQuestions([{ correct: correct, incorrect: total - correct }]);
@@ -354,6 +357,7 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
     const studyRecord: StudyRecord = {
       id: initialRecord?.id || '',
       date: selectedDate,
+      subjectId: subjects.find(subject => subject.subject === selectedSubject)?.id || '',
       subject: selectedSubject,
       topic: selectedTopic,
       studyTime: parseTime(studyTime),
