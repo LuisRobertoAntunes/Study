@@ -1576,17 +1576,31 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     await saveStudyRecord(selectedDataFile, record);
     setStudyRecords(prevRecords => prevRecords.map(r => (r.id === record.id ? record : r)));
 
-    // Remove as revisões antigas ligadas a este registro tanto do arquivo
-    // quanto do estado em memória. Antes, a remoção só acontecia em memória
-    // (setReviewRecords), então revisões antigas ficavam "órfãs" salvas no
-    // arquivo — reaparecendo em outra sessão ou, se o id da nova revisão não
-    // coincidisse exatamente com o da antiga, ficando duplicadas (uma com a
-    // data antiga, outra com a nova).
-    const oldReviewsForThisRecord = reviewRecords.filter(r => r.studyRecordId === record.id);
+    // Uma revisão concluída passa a apontar studyRecordId para o registro da
+    // sessão em que ela foi realizada. Por isso, procurar apenas por
+    // studyRecordId === record.id perde exatamente as revisões já concluídas
+    // quando a aula original é editada (por exemplo, ao adicionar "30d").
+    // O id da revisão, porém, nasce com o id da aula + período e permanece
+    // estável; o fallback por data/matéria/tópico mantém compatibilidade com
+    // arquivos antigos que não seguem esse padrão.
+    const reviewIdPrefix = `${record.id}-`;
+    const oldReviewsForThisRecord = reviewRecords.filter(r =>
+      r.studyRecordId === record.id ||
+      r.id.startsWith(reviewIdPrefix) ||
+      (r.originalDate === record.date &&
+        r.subjectId === record.subjectId &&
+        r.topic === record.topic)
+    );
     for (const oldReview of oldReviewsForThisRecord) {
       await deleteReviewRecordAction(selectedDataFile, oldReview.id);
     }
-    setReviewRecords(prevReviews => prevReviews.filter(r => r.studyRecordId !== record.id));
+    setReviewRecords(prevReviews => prevReviews.filter(r =>
+      !(r.studyRecordId === record.id ||
+        r.id.startsWith(reviewIdPrefix) ||
+        (r.originalDate === record.date &&
+          r.subjectId === record.subjectId &&
+          r.topic === record.topic))
+    ));
 
     if (record.reviewPeriods && record.reviewPeriods.length > 0) {
       const previousReviewByPeriod = new Map(

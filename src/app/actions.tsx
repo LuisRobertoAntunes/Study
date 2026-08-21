@@ -990,6 +990,18 @@ export async function getTopicSyncPreview(sourceFileName: string, targetFileName
       return overlap;
     };
 
+    const topicSimilarity = (a: string, b: string): number => {
+      const wordsA = new Set(normalizeTopicText(a).split(' ').filter(w => w.length > 2));
+      const wordsB = new Set(normalizeTopicText(b).split(' ').filter(w => w.length > 2));
+      if (wordsA.size === 0 || wordsB.size === 0) return 0;
+
+      let overlap = 0;
+      for (const word of wordsA) {
+        if (wordsB.has(word)) overlap++;
+      }
+      return overlap / Math.max(wordsA.size, wordsB.size);
+    };
+
     const sourceFlat = flattenTopics(sourceData.subjects || []);
     const targetFlat = flattenTopics(targetData.subjects || []);
     const usedTargetIndexes = new Set<number>();
@@ -1007,20 +1019,41 @@ export async function getTopicSyncPreview(sourceFileName: string, targetFileName
       );
 
       if (targetIndex === -1) {
-        // Casa pelo texto do tópico (a matéria pode ter nome totalmente diferente entre concursos).
-        // Quando há mais de um candidato com o mesmo texto, desempata pela matéria mais parecida.
-        const candidates = targetFlat
+        // Primeiro tenta o texto exato do tópico. A matéria pode ter nome
+        // totalmente diferente entre os planos e não deve participar do
+        // critério principal de correspondência.
+        const exactCandidates = targetFlat
           .map((tTopic, idx) => ({ tTopic, idx }))
           .filter(({ tTopic, idx }) => !usedTargetIndexes.has(idx) && normalizeTopicText(tTopic.topicText) === normTopic);
 
-        if (candidates.length === 1) {
-          targetIndex = candidates[0].idx;
-        } else if (candidates.length > 1) {
-          candidates.sort((a, b) =>
+        if (exactCandidates.length > 0) {
+          exactCandidates.sort((a, b) =>
             subjectWordOverlap(normalizeTopicText(b.tTopic.subjectName), normSubject) -
             subjectWordOverlap(normalizeTopicText(a.tTopic.subjectName), normSubject)
           );
-          targetIndex = candidates[0].idx;
+          targetIndex = exactCandidates[0].idx;
+        }
+      }
+
+      if (targetIndex === -1) {
+        // Se o texto mudou levemente entre os editais, aceita a melhor
+        // correspondência por palavras compartilhadas, sem exigir o mesmo
+        // nome de matéria (ex.: Ciência da Computação -> Desenvolvimento).
+        const similarCandidates = targetFlat
+          .map((tTopic, idx) => ({
+            tTopic,
+            idx,
+            similarity: topicSimilarity(sTopic.topicText, tTopic.topicText),
+          }))
+          .filter(({ idx, similarity }) => !usedTargetIndexes.has(idx) && similarity >= 0.5)
+          .sort((a, b) => {
+            if (b.similarity !== a.similarity) return b.similarity - a.similarity;
+            return subjectWordOverlap(normalizeTopicText(b.tTopic.subjectName), normSubject) -
+              subjectWordOverlap(normalizeTopicText(a.tTopic.subjectName), normSubject);
+          });
+
+        if (similarCandidates.length > 0) {
+          targetIndex = similarCandidates[0].idx;
         }
       }
 

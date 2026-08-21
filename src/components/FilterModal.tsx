@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '../app/datepicker-custom.css';
@@ -87,6 +87,23 @@ const FilterModal: React.FC<FilterModalProps> = ({
   const [maxPerformance, setMaxPerformance] = useState<string>(
     initialFilters?.maxPerformance ? String(initialFilters.maxPerformance) : ''
   );
+
+  // Reidrata os controles quando o modal é reaberto ou quando o plano
+  // selecionado muda. Sem isso, o componente mantinha seleções do plano
+  // anterior e podia aparentar que faltavam tópicos do edital atual.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setStartDate(initialFilters?.startDate instanceof Date ? initialFilters.startDate : null);
+    setEndDate(initialFilters?.endDate instanceof Date ? initialFilters.endDate : null);
+    setMinDuration(initialFilters?.minDuration ? String(initialFilters.minDuration) : '');
+    setMaxDuration(initialFilters?.maxDuration ? String(initialFilters.maxDuration) : '');
+    setSelectedCategories(initialFilters?.categories || []);
+    setSelectedSubjects(initialFilters?.subjects || []);
+    setSelectedTopics(initialFilters?.topics || []);
+    setMinPerformance(initialFilters?.minPerformance ? String(initialFilters.minPerformance) : '');
+    setMaxPerformance(initialFilters?.maxPerformance ? String(initialFilters.maxPerformance) : '');
+  }, [isOpen, initialFilters]);
 
   const topicsForSelectedSubject = useMemo(() => {
     if (selectedSubjects.length === 0 || !availableEditalData) {

@@ -6,8 +6,26 @@ import Link from 'next/link';
 const LastActivitiesSection = () => {
   const { studyRecords, formatMinutesToHoursMinutes } = useData();
 
-  const latestActivities = studyRecords
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  const getRecordCreationTime = (id: string) => {
+    const timestamp = Number(id.split('-')[0]);
+    return Number.isFinite(timestamp) ? timestamp : 0;
+  };
+
+  const recordPosition = new Map(studyRecords.map((record, index) => [record.id, index]));
+
+  const latestActivities = [...studyRecords]
+    .sort((a, b) => {
+      const dateDifference = new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (dateDifference !== 0) return dateDifference;
+
+      // Registros do mesmo dia precisam respeitar a ordem real de criação.
+      // Os IDs gerados pelo app começam com Date.now(). Para dados antigos ou
+      // sincronizados, a posição original (mais recente por último) é o
+      // critério de desempate.
+      const creationDifference = getRecordCreationTime(b.id) - getRecordCreationTime(a.id);
+      if (creationDifference !== 0) return creationDifference;
+      return (recordPosition.get(b.id) ?? 0) - (recordPosition.get(a.id) ?? 0);
+    })
     .slice(0, 2);
 
   return (

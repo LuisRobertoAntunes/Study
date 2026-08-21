@@ -153,8 +153,17 @@ export default function Revisao() {
         }));
 
       // Combinamos e ordenamos por data de conclusão (mais recente primeiro)
+      const getStudyRecordCreationTime = (record: any) => {
+        const timestamp = Number(String(record.studyRecordId || '').split('-')[0]);
+        return Number.isFinite(timestamp) ? timestamp : 0;
+      };
+
       return [...completedScheduled, ...spontaneousReviews].sort((a, b) => {
-        return new Date(b.displayDate).getTime() - new Date(a.displayDate).getTime();
+        const dateDifference = new Date(b.displayDate).getTime() - new Date(a.displayDate).getTime();
+        if (dateDifference !== 0) return dateDifference;
+
+        // Em um mesmo dia, mostra primeiro a sessão concluída mais recente.
+        return getStudyRecordCreationTime(b) - getStudyRecordCreationTime(a);
       });
     }
 
@@ -178,12 +187,15 @@ export default function Revisao() {
       const [bYear, bMonth, bDay] = b.scheduledDate.split('-').map(Number);
       const dateB = new Date(Date.UTC(bYear, bMonth - 1, bDay));
 
-      if (activeTab === 'scheduled' || activeTab === 'overdue') {
-        return dateA.getTime() - dateB.getTime();
-      } else if (activeTab === 'ignored') {
-        return dateB.getTime() - dateA.getTime();
-      }
-      return 0;
+      const dateDifference = activeTab === 'scheduled' || activeTab === 'overdue'
+        ? dateA.getTime() - dateB.getTime()
+        : dateB.getTime() - dateA.getTime();
+      if (dateDifference !== 0) return dateDifference;
+
+      // Para a mesma data, mantém o item mais recentemente criado no topo.
+      const aTimestamp = Number(String(a.studyRecordId || '').split('-')[0]);
+      const bTimestamp = Number(String(b.studyRecordId || '').split('-')[0]);
+      return (Number.isFinite(bTimestamp) ? bTimestamp : 0) - (Number.isFinite(aTimestamp) ? aTimestamp : 0);
     });
   }, [reviewRecords, studyRecords, activeTab]);
 

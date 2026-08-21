@@ -8,24 +8,26 @@ const RevisionsSection = () => {
   const { reviewRecords, updateReviewRecord } = useData();
 
   const todaysReviewRecords = useMemo(() => {
-    const now = new Date();
-    const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const getRecordCreationTime = (id: string) => {
+      const timestamp = Number(String(id || '').split('-')[0]);
+      return Number.isFinite(timestamp) ? timestamp : 0;
+    };
 
     return reviewRecords
-      .filter(record => {
-        const [rYear, rMonth, rDay] = record.scheduledDate.split('-').map(Number);
-        const recordDateUtc = new Date(Date.UTC(rYear, rMonth - 1, rDay));
-        return recordDateUtc.getTime() <= todayUtc.getTime() && !record.completedDate && !record.ignored;
-      })
+      .filter(record => !record.completedDate && !record.ignored)
       .sort((a, b) => {
         const [aYear, aMonth, aDay] = a.scheduledDate.split('-').map(Number);
         const dateA = new Date(Date.UTC(aYear, aMonth - 1, aDay));
-
         const [bYear, bMonth, bDay] = b.scheduledDate.split('-').map(Number);
         const dateB = new Date(Date.UTC(bYear, bMonth - 1, bDay));
+        const dateDifference = dateA.getTime() - dateB.getTime();
+        if (dateDifference !== 0) return dateDifference;
 
-        return dateA.getTime() - dateB.getTime();
-      });
+        // Quando várias revisões vencem no mesmo dia, segue a ordem em que
+        // as aulas foram registradas: a mais antiga deve ser executada antes.
+        return getRecordCreationTime(a.studyRecordId) - getRecordCreationTime(b.studyRecordId);
+      })
+      .slice(0, 3);
   }, [reviewRecords]);
 
   const handleCompleteReview = (id: string) => {
@@ -42,14 +44,12 @@ const RevisionsSection = () => {
     }
   };
   
-  const getDaysOverdue = (scheduledDate: string) => {
+  const getDaysDifference = (scheduledDate: string) => {
     const now = new Date();
     const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     const [sYear, sMonth, sDay] = scheduledDate.split('-').map(Number);
     const scheduledDateUtc = new Date(Date.UTC(sYear, sMonth - 1, sDay));
-    const diffTime = todayUtc.getTime() - scheduledDateUtc.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+    return Math.round((scheduledDateUtc.getTime() - todayUtc.getTime()) / (1000 * 60 * 60 * 24));
   };
 
   return (
@@ -61,8 +61,8 @@ const RevisionsSection = () => {
         ) : (
           <div className="space-y-4">
             {todaysReviewRecords.map((record) => {
-              const daysOverdue = getDaysOverdue(record.scheduledDate);
-              const isOverdue = daysOverdue > 0;
+              const daysUntil = getDaysDifference(record.scheduledDate);
+              const isOverdue = daysUntil < 0;
 
               return (
                 <div key={record.id} className="bg-gray-50 dark:bg-gray-700 border-l-4 border-gold-500 dark:border-gold-600 rounded-r-lg p-4 shadow-sm hover:shadow-md transition-shadow duration-300">
@@ -90,7 +90,11 @@ const RevisionsSection = () => {
                   </div>
                   <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
                     <p className={`text-sm font-semibold ${isOverdue ? 'text-red-500' : 'text-gray-700 dark:text-gray-200'}`}>
-                      {isOverdue ? `Atrasada em ${daysOverdue} dia(s)` : 'Revisar hoje'}
+                      {isOverdue
+                        ? `Atrasada em ${Math.abs(daysUntil)} dia(s)`
+                        : daysUntil === 0
+                          ? 'Revisar hoje'
+                          : `Revisar em ${daysUntil} dia(s)`}
                     </p>
                   </div>
                 </div>

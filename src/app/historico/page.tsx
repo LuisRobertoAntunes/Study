@@ -24,6 +24,11 @@ const formatTime = (ms: number) => {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
 
+const getRecordCreationTime = (id: string) => {
+  const timestamp = Number(String(id || '').split('-')[0]);
+  return Number.isFinite(timestamp) ? timestamp : 0;
+};
+
 // Mapa para exibir nomes de categorias mais amigáveis
 const categoryDisplayMap: { [key: string]: string } = {
   teoria: 'Teoria',
@@ -64,7 +69,7 @@ const HistoricoPage = () => {
     availablePlans,
     selectedDataFile,
     setSelectedDataFile,
-    studyPlans, // Adicionado para acessar as cores
+    studyPlans,
     stats,
   } = useData();
 
@@ -184,7 +189,8 @@ const HistoricoPage = () => {
 
   // Agrupa os registros filtrados por data
   const groupedRecords = useMemo(() => {
-    return filteredRecords.reduce((acc, record) => {
+    const recordPosition = new Map(filteredRecords.map((record, index) => [record.id, index]));
+    const grouped = filteredRecords.reduce((acc, record) => {
       const date = new Date(record.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
       if (!acc[date]) {
         acc[date] = [];
@@ -192,6 +198,16 @@ const HistoricoPage = () => {
       acc[date].push(record);
       return acc;
     }, {} as Record<string, StudyRecord[]>);
+
+    Object.values(grouped).forEach(records => {
+      records.sort((a, b) => {
+        const creationDifference = getRecordCreationTime(b.id) - getRecordCreationTime(a.id);
+        if (creationDifference !== 0) return creationDifference;
+        return (recordPosition.get(b.id) ?? 0) - (recordPosition.get(a.id) ?? 0);
+      });
+    });
+
+    return grouped;
   }, [filteredRecords]);
 
   const sortedDates = useMemo(() => 
@@ -268,12 +284,26 @@ const HistoricoPage = () => {
     });
   };
   
+  // O filtro deve usar o edital bruto do plano selecionado. stats.editalData
+  // é uma visão derivada para métricas e pode estar temporariamente vazia ou
+  // defasada durante a troca de plano; isso fazia a lista de tópicos aparecer
+  // incompleta no Histórico.
+  const currentEditalData = useMemo(() => {
+    const planIndex = availablePlans.indexOf(selectedDataFile);
+    const selectedPlan = planIndex >= 0 ? studyPlans[planIndex] : undefined;
+    const subjects = Array.isArray(selectedPlan)
+      ? selectedPlan
+      : selectedPlan?.subjects;
+
+    if (Array.isArray(subjects)) return subjects;
+    return stats?.editalData || [];
+  }, [availablePlans, selectedDataFile, studyPlans, stats?.editalData]);
+
   const availableSubjects = useMemo(() => {
-    if (stats && stats.editalData) {
-      return stats.editalData.map(s => s.subject);
-    }
-    return [];
-  }, [stats]);
+    return currentEditalData
+      .map((subject: { subject?: string }) => subject.subject)
+      .filter((subject): subject is string => Boolean(subject));
+  }, [currentEditalData]);
 
   // Verifica se há filtros ativos
   const hasActiveFilters = useMemo(() => {
@@ -432,7 +462,7 @@ const HistoricoPage = () => {
         availableCategories={Object.values(categoryDisplayMap)}
         initialFilters={filters}
         sessions={allStudyRecords}
-        availableEditalData={stats.editalData}
+        availableEditalData={currentEditalData}
       />
       <ConfirmationModal
         isOpen={isConfirmModalOpen}
