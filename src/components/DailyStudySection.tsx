@@ -103,7 +103,7 @@ const DailyStudySection = ({ dailySubjectStudyTime, subjectColors, className }: 
 
 
   return (
-    <div className={`${className || ''} bg-white shadow-lg rounded-lg p-6 dark:bg-gray-800 transition-colors duration-300 h-full flex flex-col`}>
+    <div className={`${className || ''} bg-white shadow-lg rounded-lg p-6 dark:bg-gray-800 transition-colors duration-300 h-auto flex flex-col`}>
       <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
         ESTUDOS DO DIA <span className="text-gray-600 dark:text-gray-400 text-lg">({currentDate})</span>
       </h2>
