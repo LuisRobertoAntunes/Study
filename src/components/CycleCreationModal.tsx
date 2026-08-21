@@ -388,7 +388,7 @@ const CycleCreationModal: React.FC<CycleCreationModalProps> = ({ isOpen, onClose
       selectedSubjectIds.forEach(subjectId => {
         const subjectIndex = updatedSubjects.findIndex(s => s.id === subjectId);
         if (subjectIndex !== -1) {
-          updatedSubjects[subjectIndex].topics = updateTopicRecursively(updatedSubjects[subjectIndex].topics, subjectId);
+          updatedSubjects[subjectIndex].topics = updateTopicRecursively(updatedSubjects[subjectIndex].topics as Topic[], subjectId) as any;
         }
       });
 

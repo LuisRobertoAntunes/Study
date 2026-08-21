@@ -162,7 +162,7 @@ export default function SimuladoLineChart({ labels, performanceData, scoreData, 
         hoverRadius: 7,
       },
     },
-  };
+  } as any;
 
   return <Line data={data} options={options} />;
 }

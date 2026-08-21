@@ -37,9 +37,10 @@ interface Subject {
   weight?: number; // Peso usado no cálculo da nota ponderada (propaga para os simulados)
 }
 
-interface Topic {
+export interface Topic {
   topic_number?: string;
   topic_text: string;
+  is_grouping_topic?: boolean;
   sub_topics?: Topic[];
 }
 
@@ -163,6 +164,18 @@ export default function PlanoDetalhes() {
     setIsEditPlanModalOpen(true); // Abre o modal de edição
   };
 
+  const getRecordQuestionStats = useCallback((record: StudyRecord) => {
+    if (record.questions && typeof record.questions.total === 'number') {
+      const correct = Number(record.questions.correct) || 0;
+      const total = Math.max(Number(record.questions.total) || 0, correct);
+      return { correct, incorrect: Math.max(0, total - correct), total };
+    }
+
+    const correct = Number(record.correctQuestions) || 0;
+    const incorrect = Number(record.incorrectQuestions) || 0;
+    return { correct, incorrect, total: correct + incorrect };
+  }, []);
+
   const planStats = React.useMemo(() => {
     if (!planData || !studyRecords) {
       return { totalStudyTime: 0, totalQuestions: 0, overallPerformance: 0 };
@@ -175,13 +188,13 @@ export default function PlanoDetalhes() {
     );
 
     const totalStudyTime = filteredRecords.reduce((acc, record) => acc + (record.studyTime || 0), 0);
-    const totalCorrectQuestions = filteredRecords.reduce((acc, record) => acc + (record.correctQuestions || 0), 0);
-    const totalIncorrectQuestions = filteredRecords.reduce((acc, record) => acc + (record.incorrectQuestions || 0), 0);
+    const totalCorrectQuestions = filteredRecords.reduce((acc, record) => acc + getRecordQuestionStats(record).correct, 0);
+    const totalIncorrectQuestions = filteredRecords.reduce((acc, record) => acc + getRecordQuestionStats(record).incorrect, 0);
     const totalQuestions = totalCorrectQuestions + totalIncorrectQuestions;
     const overallPerformance = totalQuestions > 0 ? Math.round((totalCorrectQuestions / totalQuestions) * 100) : 0;
 
     return { totalStudyTime, totalQuestions, overallPerformance };
-  }, [planData, studyRecords]);
+  }, [planData, studyRecords, getRecordQuestionStats]);
 
   const calculateSubjectStats = useCallback((plan: PlanData | null, records: StudyRecord[]) => {
     const stats: { [key: string]: { studiedTopics: number; totalTopics: number; totalQuestions: number } } = {};
@@ -201,7 +214,7 @@ export default function PlanoDetalhes() {
 
       // Questões resolvidas
       records.filter(record => record.subject === subject.subject).forEach(record => {
-        totalQuestions += (record.correctQuestions || 0) + (record.incorrectQuestions || 0);
+        totalQuestions += getRecordQuestionStats(record).total;
       });
 
       stats[subject.subject] = {
@@ -211,7 +224,7 @@ export default function PlanoDetalhes() {
       };
     });
     return stats;
-  }, []);
+  }, [getRecordQuestionStats]);
 
   const subjectStats = React.useMemo(() => {
     return calculateSubjectStats(planData, studyRecords);
@@ -283,7 +296,7 @@ export default function PlanoDetalhes() {
     setIsSubjectModalOpen(false);
     setSubjectToEdit(null); // Limpa o estado de edição
 
-    const result = await updatePlanFile(fileName, updatedPlanData);
+    const result = await updatePlanFile(fileName, updatedPlanData as any);
     if (result.success) {
       showNotification(successMessage, 'success');
       // Propaga a cor/nome atualizados para o restante do app: a aba
@@ -345,7 +358,7 @@ export default function PlanoDetalhes() {
       iconUrl: finalIconUrl, // Use the new URL or the existing one
     };
 
-    const result = await updatePlanFile(fileName, updatedPlanContent);
+    const result = await updatePlanFile(fileName, updatedPlanContent as any);
     if (result.success) {
       showNotification('Plano atualizado com sucesso!', 'success');
       setIsEditPlanModalOpen(false);
@@ -373,7 +386,7 @@ export default function PlanoDetalhes() {
       setPlanData(updatedPlanData);
       setHasChanges(true);
 
-      const result = await updatePlanFile(fileName, updatedPlanData);
+      const result = await updatePlanFile(fileName, updatedPlanData as any);
       if (result.success) {
         showNotification('Disciplina excluída com sucesso!', 'success');
         // Opcional: Recarregar dados para garantir consistência, embora o setPlanData já atualize o estado

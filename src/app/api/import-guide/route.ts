@@ -1,11 +1,13 @@
-import { NextResponse } from 'next/server';
 import puppeteer from 'puppeteer';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]/route';
+import { authOptions } from '../../../lib/auth';
 import fs from 'fs/promises';
 import path from 'path';
 import fetch from 'node-fetch';
 import crypto from 'crypto';
+import dns from 'node:dns/promises';
+import net from 'node:net';
 
 // Interfaces para os dados do plano
 interface Topic {
@@ -52,11 +54,12 @@ function slugify(text: string): string {
 // Lógica de getUserDataDirectory duplicada aqui para garantir que funcione no build de produção
 async function getImportUserDataDirectory(): Promise<string> {
   const session = await getServerSession(authOptions);
-  if (!session || !session.user || !session.user.id) {
+  const userId = (session?.user as { id?: string } | undefined)?.id;
+  if (!userId) {
     throw new Error('Usuário não autenticado na função de diretório de dados.');
   }
   const dataDir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
-  const userDir = path.join(dataDir, session.user.id);
+  const userDir = path.join(dataDir, userId);
   await fs.mkdir(userDir, { recursive: true });
   return userDir;
 }
@@ -79,55 +82,114 @@ async function urlToBase64(url: string): Promise<string | undefined> {
   }
 }
 
+function isPrivateIp(address: string): boolean {
+  if (net.isIPv4(address)) {
+    const octets = address.split('.').map(Number);
+    return octets[0] === 10 ||
+      octets[0] === 127 ||
+      (octets[0] === 169 && octets[1] === 254) ||
+      (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+      (octets[0] === 192 && octets[1] === 168);
+  }
+
+  const normalized = address.toLowerCase();
+  return normalized === '::1' || normalized.startsWith('fc') || normalized.startsWith('fd') || normalized.startsWith('fe80:');
+}
+
+async function isSafeExternalUrl(parsedUrl: URL): Promise<boolean> {
+  const hostname = parsedUrl.hostname.toLowerCase();
+  if (hostname === 'localhost' || hostname.endsWith('.localhost') || hostname.endsWith('.local') || net.isIP(hostname)) {
+    return false;
+  }
+
+  try {
+    const addresses = await dns.lookup(hostname, { all: true });
+    return addresses.length > 0 && addresses.every(({ address }) => !isPrivateIp(address));
+  } catch {
+    return false;
+  }
+}
+
 // Função principal da API
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
 
-  if (!session || !session.user || !session.user.id) {
+  const userId = (session?.user as { id?: string } | undefined)?.id;
+  if (!userId) {
     return NextResponse.json(
       { error: 'Não autorizado. Faça login para importar um guia.' },
       { status: 401 }
     );
   }
-
   const body = await req.json();
   const { guideUrl } = body;
 
-  if (!guideUrl) {
+  if (typeof guideUrl !== 'string' || !guideUrl.trim()) {
     return NextResponse.json(
       { error: 'A URL do guia é obrigatória.' },
       { status: 400 }
     );
   }
-  // ===============================
-// 📦 IMPORTAÇÃO VIA JSON (NOVO)
-// ===============================
-if (
-  guideUrl.endsWith('.json') ||
-  guideUrl.includes('raw.githubusercontent.com')
-) {
-  const response = await fetch(guideUrl);
-
-  if (!response.ok) {
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(guideUrl);
+  } catch {
     return NextResponse.json(
-      { error: 'Falha ao baixar JSON do guia.' },
+      { error: 'A URL do guia é inválida.' },
       { status: 400 }
     );
   }
 
-  const planData = await response.json();
+  if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+    return NextResponse.json(
+      { error: 'A URL do guia deve usar HTTP ou HTTPS.' },
+      { status: 400 }
+    );
+  }
 
-  const userDir = await getImportUserDataDirectory();
-  const fileName = `${slugify(planData.name)}.json`;
-  const filePath = path.join(userDir, fileName);
+  if (!(await isSafeExternalUrl(parsedUrl))) {
+    return NextResponse.json(
+      { error: 'A URL do guia aponta para um endereço local, privado ou indisponível.' },
+      { status: 400 }
+    );
+  }
 
-  await fs.writeFile(filePath, JSON.stringify(planData, null, 2), 'utf-8');
+  // ===============================
+  // IMPORTAÇÃO VIA JSON
+  // ===============================
+  if (
+    parsedUrl.pathname.toLowerCase().endsWith('.json') ||
+    parsedUrl.hostname === 'raw.githubusercontent.com'
+  ) {
+    const response = await fetch(parsedUrl.toString());
 
-  return NextResponse.json({
-    message: 'Importação via JSON realizada com sucesso!',
-    plan: planData,
-  });
-}
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: 'Falha ao baixar JSON do guia.' },
+        { status: 400 }
+      );
+    }
+
+    const importedData = (await response.json()) as Partial<PlanData>;
+    if (!importedData || typeof importedData.name !== 'string' || !importedData.name.trim()) {
+      return NextResponse.json(
+        { error: 'O JSON não contém um nome de plano válido.' },
+        { status: 400 }
+      );
+    }
+    const planData = importedData as PlanData;
+
+    const userDir = await getImportUserDataDirectory();
+    const fileName = `${slugify(planData.name) || 'plano-importado'}.json`;
+    const filePath = path.join(userDir, fileName);
+
+    await fs.writeFile(filePath, JSON.stringify(planData, null, 2), 'utf-8');
+
+    return NextResponse.json({
+      message: 'Importação via JSON realizada com sucesso!',
+      plan: planData,
+    });
+  }
 
   let browser;
 
@@ -230,7 +292,7 @@ if (
     if (base64IconUrl) {
       headerData.iconUrl = base64IconUrl;
     } else {
-      delete headerData.iconUrl;
+      headerData.iconUrl = '';
     }
 
     const subjectLinks = await page.evaluate(() => {

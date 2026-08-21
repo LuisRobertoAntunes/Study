@@ -3,13 +3,16 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { FaTimes, FaCalendarAlt, FaCheckCircle, FaTimesCircle, FaMinusCircle, FaPercentage, FaStar, FaTrash, FaPencilAlt } from 'react-icons/fa';
 import { useData } from '../context/DataContext';
+import type { SimuladoRecord } from '../app/actions';
 
 interface Subject {
+  id?: string;
   name: string;
   weight: number;
   totalQuestions: number;
   correct: number;
   incorrect: number;
+  color?: string;
 }
 
 interface AddSimuladoModalProps {
@@ -47,8 +50,17 @@ export default function AddSimuladoModal({ isOpen, onClose, initialSimulado }: A
         setBanca(initialSimulado.banca);
         setTimeSpent(initialSimulado.timeSpent);
         setComments(initialSimulado.comments);
-        setSubjects(initialSimulado.subjects);
-        setWeightInputs(initialSimulado.subjects.map(s => String(s.weight).replace('.', ',')));
+        const initialSubjects: Subject[] = initialSimulado.subjects.map(subject => ({
+          id: subject.id,
+          name: subject.subjectName,
+          weight: subject.weight,
+          totalQuestions: subject.totalQuestions,
+          correct: subject.correct,
+          incorrect: subject.incorrect,
+          color: subject.color,
+        }));
+        setSubjects(initialSubjects);
+        setWeightInputs(initialSubjects.map(s => String(s.weight).replace('.', ',')));
       } else {
         // Resetar o formulário para um novo simulado
         setSelectedDate(new Date().toISOString().split('T')[0]);
@@ -147,7 +159,8 @@ export default function AddSimuladoModal({ isOpen, onClose, initialSimulado }: A
       banca: banca,
       timeSpent: timeSpent,
       subjects: subjects.map(s => ({
-        name: s.name,
+        id: s.id || crypto.randomUUID(),
+        subjectName: s.name,
         weight: s.weight,
         totalQuestions: s.totalQuestions,
         correct: s.correct,

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useData, StudyRecord, ReviewRecord } from '../../context/DataContext';
-import { BsPlusCircleFill, BsPlayFill, BsCheckCircleFill, BsXCircleFill, BsClockFill, BsBookFill, BsCameraVideoFill, BsFileEarmarkTextFill, BsChatTextFill, BsTrashFill } from 'react-icons/bs';
+import { BsPlusCircleFill, BsPlayFill, BsCheckCircleFill, BsXCircleFill, BsClockFill, BsBookFill, BsCameraVideoFill, BsFileEarmarkTextFill, BsChatTextFill, BsTrashFill, BsPencilSquare } from 'react-icons/bs';
 import PlanSelector from '../../components/PlanSelector';
 import StudyRegisterModal from '../../components/StudyRegisterModal';
 import ConfirmationModal from '../../components/ConfirmationModal';
@@ -38,13 +38,14 @@ const formatTime = (ms: number): string => {
 };
 
 export default function Revisao() {
-  const { selectedDataFile, setSelectedDataFile, availablePlans, addStudyRecord, updateStudyRecord, studyRecords, reviewRecords, updateReviewRecord, deleteReviewRecord } = useData();
+  const { selectedDataFile, setSelectedDataFile, availablePlans, addStudyRecord, updateStudyRecord, deleteStudyRecord, studyRecords, reviewRecords, updateReviewRecord, deleteReviewRecord } = useData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<StudyRecord | null>(null);
   const [activeTab, setActiveTab] = useState<'scheduled' | 'overdue' | 'ignored' | 'completed'>('scheduled');
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [completingReviewId, setCompletingReviewId] = useState<string | null>(null);
   const [reviewToDeleteId, setReviewToDeleteId] = useState<string | null>(null);
+  const [studyRecordToDeleteId, setStudyRecordToDeleteId] = useState<string | null>(null);
 
   // Handle adding a new study record
   const handleAddClick = () => {
@@ -91,16 +92,31 @@ export default function Revisao() {
     }
   };
 
-  // Handle deleting a review
-  const handleDeleteReview = (id: string) => {
+  const handleEditCompletedReview = (reviewRecord: ReviewRecord) => {
+    const completedStudyRecord = studyRecords.find(sr => sr.id === reviewRecord.studyRecordId);
+    if (!completedStudyRecord) return;
+
+    setEditingRecord(completedStudyRecord);
+    setCompletingReviewId(null);
+    setIsModalOpen(true);
+  };
+
+  // Nas revisões concluídas, o registro associado contém os dados reais da
+  // revisão (tempo, questões, páginas etc.). Excluir esse registro também
+  // remove a revisão vinculada. Nas demais abas, excluímos apenas o agendamento.
+  const handleDeleteReview = (id: string, linkedStudyRecordId?: string) => {
     setReviewToDeleteId(id);
+    setStudyRecordToDeleteId(linkedStudyRecordId || null);
   };
 
   const confirmDeleteReview = () => {
-    if (reviewToDeleteId) {
+    if (studyRecordToDeleteId) {
+      deleteStudyRecord(studyRecordToDeleteId);
+    } else if (reviewToDeleteId) {
       deleteReviewRecord(reviewToDeleteId);
-      setReviewToDeleteId(null);
     }
+    setReviewToDeleteId(null);
+    setStudyRecordToDeleteId(null);
   };
 
   // Filter review records based on active tab
@@ -351,16 +367,25 @@ export default function Revisao() {
                                   <BsXCircleFill className="text-sm text-white" />
                                 </button>
                               )}
-                              {/* Só permite excluir se for uma revisão agendada (não espontânea) */}
-                              {!record.id.startsWith('spontaneous-') && (
+                              {activeTab === 'completed' && studyRecord && (
                                 <button
-                                  onClick={() => handleDeleteReview(record.id)}
-                                  title="Excluir Revisão"
-                                  className="flex items-center justify-center p-1 bg-red-600 text-white rounded-full shadow-md hover:bg-red-700 transition-colors"
+                                  onClick={() => handleEditCompletedReview(record)}
+                                  title="Editar registro da revisão"
+                                  className="flex items-center justify-center p-1 bg-blue-600 text-white rounded-full shadow-md hover:bg-blue-700 transition-colors"
                                 >
-                                  <BsTrashFill className="text-sm text-white" />
+                                  <BsPencilSquare className="text-sm text-white" />
                                 </button>
                               )}
+                              <button
+                                onClick={() => handleDeleteReview(
+                                  record.id,
+                                  activeTab === 'completed' ? record.studyRecordId : undefined
+                                )}
+                                title={activeTab === 'completed' ? 'Excluir registro da revisão' : 'Excluir Revisão'}
+                                className="flex items-center justify-center p-1 bg-red-600 text-white rounded-full shadow-md hover:bg-red-700 transition-colors"
+                              >
+                                <BsTrashFill className="text-sm text-white" />
+                              </button>
                             </div>
                             <span className="text-base font-semibold text-gray-800 dark:text-gray-100 uppercase">{record.subject}</span>
                             {/* Tag de Revisão com cor diferenciada */}

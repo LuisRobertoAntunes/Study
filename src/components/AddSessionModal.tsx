@@ -6,6 +6,7 @@ import { getJsonContent } from '../app/actions';
 import { useNotification } from '../context/NotificationContext';
 
 interface Subject {
+  id?: string;
   subject: string;
   topics: any[];
   color: string;
@@ -58,6 +59,7 @@ const AddSessionModal: React.FC<AddSessionModalProps> = ({ isOpen, onClose }) =>
     const subjectData = subjects.find(s => s.subject === selectedSubject);
     const newSession = {
       id: `${Date.now()}`,
+      subjectId: subjectData?.id || selectedSubject,
       subject: selectedSubject,
       duration,
       color: subjectData?.color || '#94A3B8',

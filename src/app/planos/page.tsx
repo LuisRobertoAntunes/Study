@@ -159,7 +159,7 @@ export default function Planos() {
   }
 
   if (status === 'unauthenticated') {
-    return <WelcomeScreen />;
+    return <WelcomeScreen onOpenModal={() => setIsModalOpen(true)} />;
   }
 
   if (status === 'authenticated') {

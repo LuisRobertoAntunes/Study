@@ -93,7 +93,7 @@ const ChartComponents: React.FC<ChartComponentsProps> = ({ stats }) => {
         fontSize: 24,
       }
     }
-  };
+  } as any;
 
   if (!chartJsLoaded) return <div className="flex items-center justify-center h-full">Carregando...</div>;
 

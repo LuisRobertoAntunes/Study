@@ -38,6 +38,7 @@ interface Subject {
 interface Topic {
   topic_number?: string;
   topic_text: string;
+  is_grouping_topic?: boolean;
   sub_topics?: Topic[];
 }
 
@@ -341,7 +342,7 @@ export default function MateriaDetalhes() {
         beginAtZero: true
       },
     },
-  }), [chartData.unit, theme]);
+  } as any), [chartData.unit, theme]);
 
   const openRegisterModalForNew = () => {
     setSelectedTopic(null);

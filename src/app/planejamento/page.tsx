@@ -17,6 +17,7 @@ import { arrayMove } from '@dnd-kit/sortable';
 
 // Interfaces
 interface Subject {
+  id?: string;
   subject: string;
   topics: Topic[];
   color: string;

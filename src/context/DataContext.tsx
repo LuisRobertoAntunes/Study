@@ -63,6 +63,10 @@ export interface StudyRecord {
   topic: string;
   studyTime: number;
   questions?: { correct: number; total: number };
+  /** Campos legados mantidos para leitura de planos antigos. */
+  pagesRead?: number;
+  correctQuestions?: number;
+  incorrectQuestions?: number;
   pages: { start: number; end: number }[];
   videos: { title: string; start: string; end: string }[];
   material?: string;
@@ -1585,6 +1589,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     setReviewRecords(prevReviews => prevReviews.filter(r => r.studyRecordId !== record.id));
 
     if (record.reviewPeriods && record.reviewPeriods.length > 0) {
+      const previousReviewByPeriod = new Map(
+        oldReviewsForThisRecord.map(review => [review.reviewPeriod, review])
+      );
       const newReviewRecords: ReviewRecord[] = [];
       record.reviewPeriods.forEach(period => {
         const [year, month, day] = record.date.split('-').map(Number);
@@ -1599,11 +1606,15 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           scheduledDate.setUTCMonth(originalDate.getUTCMonth() + parseInt(period.slice(0, -1)));
         }
 
+        const previousReview = previousReviewByPeriod.get(period);
         newReviewRecords.push({
           id: `${record.id}-${period}`, studyRecordId: record.id,
-          scheduledDate: scheduledDate.toISOString().split('T')[0], status: 'pending',
+          scheduledDate: scheduledDate.toISOString().split('T')[0],
+          status: previousReview?.status || 'pending',
           originalDate: record.date, subjectId: record.subjectId, subject: record.subject, topic: record.topic,
-          reviewPeriod: period, completedDate: undefined, ignored: false,
+          reviewPeriod: period,
+          completedDate: previousReview?.completedDate,
+          ignored: previousReview?.ignored || false,
         });
       });
 

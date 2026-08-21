@@ -125,7 +125,7 @@ export default function SimuladoCard({ simulado, onEdit, onDelete }: SimuladoCar
 
                     return (
                       <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" style={{ borderLeft: `4px solid ${subject.color}` }}>
-                        <td className="py-2 px-3 text-sm font-medium text-gray-800 dark:text-gray-100">{subject.name}</td>
+                        <td className="py-2 px-3 text-sm font-medium text-gray-800 dark:text-gray-100">{subject.subjectName}</td>
                         <td className="py-2 px-3 text-center text-sm text-gray-700 dark:text-gray-200">{subject.weight}</td>
                         <td className="py-2 px-3 text-center text-sm text-green-600 font-semibold">{subject.correct}</td>
                         <td className="py-2 px-3 text-center text-sm text-red-600 font-semibold">{subject.incorrect}</td>

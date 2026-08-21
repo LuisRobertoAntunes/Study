@@ -3,18 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import { FaSyncAlt } from 'react-icons/fa';
 
-declare global {
-  interface Window {
-    electronAPI?: {
-      getAppVersion?: () => Promise<string>;
-      onUpdateAvailable?: (callback: (version: string) => void) => void;
-      onUpdateDownloaded?: (callback: (version: string) => void) => void;
-      quitAndInstall?: () => void;
-      [key: string]: any;
-    };
-  }
-}
-
 export default function AppVersionFooter() {
   const [version, setVersion] = useState<string>('');
   const [updateVersion, setUpdateVersion] = useState<string | null>(null);

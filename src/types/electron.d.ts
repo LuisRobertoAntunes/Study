@@ -10,6 +10,10 @@ export interface IElectronAPI {
   onAppClosing: (callback: () => void) => void;
   sendBackupComplete: () => void;
   getDefaultBackupPath: () => Promise<string>;
+  getAppVersion?: () => Promise<string>;
+  onUpdateAvailable?: (callback: (version: string) => void) => void;
+  onUpdateDownloaded?: (callback: (version: string) => void) => void;
+  quitAndInstall?: () => void;
 }
 
 declare global {

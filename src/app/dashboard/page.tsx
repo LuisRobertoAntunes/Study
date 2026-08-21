@@ -4,7 +4,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useData } from '../../context/DataContext';
 import { getJsonContent } from '../actions';
-import StudyRegisterModal, { StudyRecord } from '../../components/StudyRegisterModal';
+import StudyRegisterModal from '../../components/StudyRegisterModal';
+import { StudyRecord } from '../../context/DataContext';
 import { BsPlusCircleFill } from 'react-icons/bs';
 import WeeklyStudyChart from '../../components/WeeklyStudyChart';
 import PlanSelector from '../../components/PlanSelector';
@@ -57,6 +58,24 @@ const formatHours = (ms: number) => {
 };
 
 // Componente para o Rastreador de Constância
+interface ConsistencyDay {
+  date: string;
+  active: boolean;
+  studied?: boolean;
+  status?: 'studied' | 'failed' | 'rest' | 'rest_studied' | string;
+}
+
+interface StudyConsistencyTrackerProps {
+  consecutiveDays: number;
+  daysData?: ConsistencyDay[];
+  startDate: string | null;
+  endDate: string | null;
+  onPrev: () => void;
+  onNext: () => void;
+  isPrevDisabled: boolean;
+  isNextDisabled: boolean;
+}
+
 const StudyConsistencyTracker = ({
   consecutiveDays,
   daysData = [],
@@ -66,8 +85,8 @@ const StudyConsistencyTracker = ({
   onNext,
   isPrevDisabled,
   isNextDisabled
-}) => {
-  const formatDate = (date) => {
+}: StudyConsistencyTrackerProps) => {
+  const formatDate = (date: string | null) => {
     if (!date) return '';
     const d = new Date(date);
     d.setDate(d.getDate() + 1); // Ajuste para exibição correta da data
@@ -76,7 +95,7 @@ const StudyConsistencyTracker = ({
     return `${day}/${month}`;
   };
 
-  const getTooltipText = (day) => {
+  const getTooltipText = (day: ConsistencyDay) => {
     const date = new Date(day.date);
     date.setDate(date.getDate() + 1); // Ajuste para exibição correta da data
     const formattedDate = date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -89,7 +108,7 @@ const StudyConsistencyTracker = ({
     return `${formattedDate}: ${statusText}`;
   };
 
-  const getDayClass = (day) => {
+  const getDayClass = (day: ConsistencyDay) => {
     if (!day.active) return 'bg-gray-200';
     switch (day.status) {
       case 'studied':
@@ -143,8 +162,15 @@ const StudyConsistencyTracker = ({
 };
 
 // Componente para Metas Semanais
-const WeeklyStudyGoals = ({ currentHours, goalHours, currentQuestions, goalQuestions }) => {
-  const formatHoursDisplay = (ms) => {
+interface WeeklyStudyGoalsProps {
+  currentHours: number;
+  goalHours: number;
+  currentQuestions: number;
+  goalQuestions: number;
+}
+
+const WeeklyStudyGoals = ({ currentHours, goalHours, currentQuestions, goalQuestions }: WeeklyStudyGoalsProps) => {
+  const formatHoursDisplay = (ms: number) => {
     if (!ms || isNaN(ms) || ms <= 0) return 'N/A';
     const totalMinutes = Math.floor(ms / 60000);
     const hours = Math.floor(totalMinutes / 60);
@@ -153,7 +179,7 @@ const WeeklyStudyGoals = ({ currentHours, goalHours, currentQuestions, goalQuest
   };
 
   // New function for hours bar color
-  const getBarColorForHours = (percentage) => {
+  const getBarColorForHours = (percentage: number) => {
     if (percentage >= 100) return 'bg-blue-800'; // Meta Atingida
     if (percentage > 80) return 'bg-blue-600';  // Quase lá
     if (percentage > 40) return 'bg-blue-400';  // Progresso
@@ -161,7 +187,7 @@ const WeeklyStudyGoals = ({ currentHours, goalHours, currentQuestions, goalQuest
   };
 
   // New function for questions bar color
-  const getBarColorForQuestions = (percentage) => {
+  const getBarColorForQuestions = (percentage: number) => {
     if (percentage >= 100) return 'bg-blue-800';
     if (percentage > 80) return 'bg-blue-600';
     if (percentage > 40) return 'bg-blue-400';
@@ -380,7 +406,7 @@ export default function DashboardPage() {
                 {sortedSubjectPerformance.map(([subjectName, subjectStats], index) => {
                   const performancePercentage = subjectStats.performance || 0;
 
-                  const getBarColor = (percentage) => {
+                  const getBarColor = (percentage: number) => {
                     if (percentage >= 85) return 'bg-green-500';
                     if (percentage >= 70) return 'bg-gold-500';
                     if (percentage >= 50) return 'bg-yellow-500';

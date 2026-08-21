@@ -5,12 +5,12 @@ import React, { useState, useMemo } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '../app/datepicker-custom.css';
-import { StudySession } from '@/types/types';
 import { FaBook, FaBullseye, FaChartLine, FaHistory, FaTimes, FaFileAlt, FaGavel, FaQuestionCircle, FaTag } from 'react-icons/fa';
 import MultiSelectDropdown from './MultiSelectDropdown';
 
 interface EditalTopic {
   topic_text: string;
+  sub_topics?: EditalTopic[];
 }
 
 interface EditalSubject {
@@ -22,14 +22,14 @@ interface FilterModalProps {
   isOpen: boolean;
   onClose: () => void;
   onApply: (filters: any) => void; // CORRIGIDO: Alterado de onApply para onApplyFilters
-  sessions: StudySession[];
+  sessions: unknown[];
   availableCategories: string[];
   availableSubjects: string[];
   availableEditalData: EditalSubject[];
   initialFilters?: any; // ADICIONADO: Suporte a filtros iniciais
 }
 
-const categoryIcons: { [key: string]: JSX.Element } = {
+const categoryIcons: { [key: string]: React.JSX.Element } = {
   Teoria: <FaBook className="mr-2" />,
   Revisão: <FaHistory className="mr-2" />,
   Exercícios: <FaBullseye className="mr-2" />,
@@ -92,11 +92,16 @@ const FilterModal: React.FC<FilterModalProps> = ({
     if (selectedSubjects.length === 0 || !availableEditalData) {
       return [];
     }
+    const flattenTopics = (topics: EditalTopic[], subjectName: string): string[] => {
+      return topics.flatMap(topic => [
+        `${subjectName} - ${topic.topic_text}`,
+        ...(topic.sub_topics ? flattenTopics(topic.sub_topics, subjectName) : []),
+      ]);
+    };
+
     const topics = availableEditalData
       .filter((subjectData: EditalSubject) => selectedSubjects.includes(subjectData.subject))
-      .flatMap((subjectData: EditalSubject) => 
-        subjectData.topics.map((topic: EditalTopic) => `${subjectData.subject} - ${topic.topic_text}`)
-      );
+      .flatMap((subjectData: EditalSubject) => flattenTopics(subjectData.topics, subjectData.subject));
     return [...new Set(topics)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   }, [availableEditalData, selectedSubjects]);
 

@@ -15,16 +15,17 @@ interface PlanningDashboardProps {
 const PlanningDashboard: React.FC<PlanningDashboardProps> = ({ onOpenModal }) => {
   const { studyCycle, selectedDataFile, setSelectedDataFile, setStudyCycle, stats, completedCycles, currentProgressMinutes, sessionProgressMap } = useData();
   const { showNotification } = useNotification();
-  const { isSidebarOpen } = useSidebar();
+  const { isSidebarExpanded } = useSidebar();
+  const studyHours = stats?.weeklyHours ?? 0;
 
-  const [hoveredSession, setHoveredSession] = useState<string | null>(null);
+  const [hoveredSession, setHoveredSession] = useState<number | null>(null);
 
   const handleEditCycle = () => {
     onOpenModal();
   };
 
   const totalCycleDuration = studyCycle?.reduce((sum, session) => sum + session.duration, 0) || 1;
-  const weeklyHoursValue = parseInt(studyHours, 10) || 0;
+  const weeklyHoursValue = typeof studyHours === 'number' ? studyHours : parseInt(studyHours, 10) || 0;
   const weeklyHoursInMinutes = weeklyHoursValue * 60;
   const weeklyProgressPercent = weeklyHoursInMinutes > 0 ? (currentProgressMinutes / weeklyHoursInMinutes) * 100 : 0;
 

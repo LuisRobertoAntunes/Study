@@ -7,7 +7,9 @@ import {
   ArcElement,
   Tooltip,
   Legend,
+  type TooltipItem,
 } from 'chart.js';
+import type { EditalSubject } from '../context/DataContext';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -23,7 +25,13 @@ const formatMinutesToHoursMinutes = (totalMinutes: number) => {
   }
 };
 
-const DailyStudySection = ({ dailySubjectStudyTime, subjectColors, className }) => {
+interface DailyStudySectionProps {
+  dailySubjectStudyTime: Record<string, Record<string, number>>;
+  subjectColors: Pick<EditalSubject, 'subject' | 'color'>[];
+  className?: string;
+}
+
+const DailyStudySection = ({ dailySubjectStudyTime, subjectColors, className }: DailyStudySectionProps) => {
   const [currentDate, setCurrentDate] = useState('');
 
   useEffect(() => {
@@ -37,7 +45,7 @@ const DailyStudySection = ({ dailySubjectStudyTime, subjectColors, className }) 
   const today = new Date().toISOString().split('T')[0];
   const todaysStudyData = dailySubjectStudyTime && dailySubjectStudyTime[today] ? dailySubjectStudyTime[today] : {};
 
-  const subjectColorMap = subjectColors.reduce((acc, subject) => {
+  const subjectColorMap = subjectColors.reduce<Record<string, string>>((acc, subject) => {
     acc[subject.subject] = subject.color;
     return acc;
   }, {});
@@ -73,7 +81,7 @@ const DailyStudySection = ({ dailySubjectStudyTime, subjectColors, className }) 
         titleFont: { size: 0 }, // remove título
         callbacks: {
           title: () => '',
-          label: function (context) {
+          label: function (context: TooltipItem<'pie'>) {
             const label = context.label || '';
             const value = context.parsed;
 
@@ -95,7 +103,7 @@ const DailyStudySection = ({ dailySubjectStudyTime, subjectColors, className }) 
 
 
   return (
-    <div className="bg-white shadow-lg rounded-lg p-6 dark:bg-gray-800 transition-colors duration-300 h-full flex flex-col">
+    <div className={`${className || ''} bg-white shadow-lg rounded-lg p-6 dark:bg-gray-800 transition-colors duration-300 h-full flex flex-col`}>
       <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
         ESTUDOS DO DIA <span className="text-gray-600 dark:text-gray-400 text-lg">({currentDate})</span>
       </h2>
