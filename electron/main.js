@@ -14,6 +14,8 @@ let mainWindow;
 // Em produção, será o arquivo do build.
 const startURL = process.env.ELECTRON_START_URL || "http://localhost:3000";
 const isDev = !!process.env.ELECTRON_START_URL;
+const UPDATE_VERSION_URL = process.env.STUDY_UPDATE_VERSION_URL || 'https://study-page.vercel.app/api/version';
+const UPDATE_PAGE_URL = 'https://study-page.vercel.app/';
 
 // --- LÓGICA DO TIMER NO PROCESSO PRINCIPAL ---
 let timerState = {
@@ -217,20 +219,93 @@ ipcMain.on('backup-complete', () => {
 });
 
 ipcMain.handle('get-app-version', () => app.getVersion());
+ipcMain.on('start-update-download', async () => {
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    if (result?.updateInfo?.version && compareVersions(result.updateInfo.version, app.getVersion()) > 0) {
+      await autoUpdater.downloadUpdate();
+    } else if (mainWindow) {
+      mainWindow.webContents.send('update-error', 'A versão publicada ainda não está disponível para download.');
+    }
+  } catch (error) {
+    console.error('Erro ao iniciar download da atualização:', error);
+    if (mainWindow) {
+      mainWindow.webContents.send('update-error', 'Não foi possível baixar a atualização agora.');
+    }
+  }
+});
 ipcMain.on('quit-and-install', () => {
   autoUpdater.quitAndInstall();
 });
 
-function setupAutoUpdater() {
-  autoUpdater.autoDownload = true;
-  autoUpdater.on('update-available', (info) => {
-    if (mainWindow) mainWindow.webContents.send('update-available', info.version);
+function parseVersion(version) {
+  const match = String(version || '').trim().replace(/^v/i, '').match(/^(\d+)\.(\d+)(?:\.(\d+))?/);
+  return match ? [Number(match[1]), Number(match[2]), Number(match[3] || 0)] : null;
+}
+
+function compareVersions(a, b) {
+  const parsedA = parseVersion(a);
+  const parsedB = parseVersion(b);
+  if (!parsedA || !parsedB) return 0;
+  for (let index = 0; index < parsedA.length; index += 1) {
+    if (parsedA[index] !== parsedB[index]) return parsedA[index] > parsedB[index] ? 1 : -1;
+  }
+  return 0;
+}
+
+let lastNotifiedRemoteVersion = null;
+
+async function fetchPublishedVersion() {
+  try {
+    const response = await fetch(`${UPDATE_VERSION_URL}?t=${Date.now()}`, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (response.ok) {
+      const published = await response.json();
+      if (published?.version) return String(published.version).trim();
+    }
+  } catch (error) {
+    console.warn('Endpoint de versão indisponível; tentando a página pública:', error.message);
+  }
+
+  const pageResponse = await fetch(`${UPDATE_PAGE_URL}?t=${Date.now()}`, {
+    headers: { Accept: 'text/html' },
+    signal: AbortSignal.timeout(10000),
   });
+  if (!pageResponse.ok) throw new Error(`HTTP ${pageResponse.status}`);
+
+  const pageHtml = await pageResponse.text();
+  const versionMatch = pageHtml.match(/v(\d+\.\d+(?:\.\d+)?)\s+dispon[ií]vel\s+para\s+Windows/i);
+  return versionMatch?.[1] || null;
+}
+
+async function checkPublishedVersion() {
+  if (!app.isPackaged || !mainWindow) return;
+
+  try {
+    const remoteVersion = await fetchPublishedVersion();
+    if (
+      remoteVersion &&
+      compareVersions(remoteVersion, app.getVersion()) > 0 &&
+      remoteVersion !== lastNotifiedRemoteVersion
+    ) {
+      lastNotifiedRemoteVersion = remoteVersion;
+      mainWindow.webContents.send('update-available', remoteVersion);
+    }
+  } catch (error) {
+    console.error('Erro ao consultar a versão publicada:', error);
+  }
+}
+
+function setupAutoUpdater() {
+  autoUpdater.autoDownload = false;
   autoUpdater.on('update-downloaded', (info) => {
     if (mainWindow) mainWindow.webContents.send('update-downloaded', info.version);
   });
   autoUpdater.on('error', (err) => {
-    console.error('Erro ao verificar atualização:', err);
+    console.error('Erro no atualizador:', err);
+    if (mainWindow) mainWindow.webContents.send('update-error', 'Não foi possível verificar ou baixar a atualização.');
   });
 }
 
@@ -282,11 +357,10 @@ app.whenReady().then(async () => {
   Menu.setApplicationMenu(menu);
 
 
-  createWindow();
-
+    createWindow();
   if (app.isPackaged) {
     setupAutoUpdater();
-    autoUpdater.checkForUpdates().catch(err => console.error('Erro ao checar atualização:', err));
+    setTimeout(checkPublishedVersion, 3000);
   }
 
   app.on("activate", () => {

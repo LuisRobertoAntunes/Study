@@ -12,7 +12,9 @@ export interface IElectronAPI {
   getDefaultBackupPath: () => Promise<string>;
   getAppVersion?: () => Promise<string>;
   onUpdateAvailable?: (callback: (version: string) => void) => void;
+  startUpdateDownload?: () => void;
   onUpdateDownloaded?: (callback: (version: string) => void) => void;
+  onUpdateError?: (callback: (message: string) => void) => void;
   quitAndInstall?: () => void;
 }
 
