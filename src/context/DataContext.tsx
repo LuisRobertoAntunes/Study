@@ -337,6 +337,24 @@ const calculateStats = async (
   const subjectIdToNameMap = new Map<string, string>();
   editalData.forEach(s => subjectIdToNameMap.set(s.id, s.subject));
 
+  const planningStartDate = studyRecords
+    .filter(record => record.countInPlanning && record.category !== 'Sincronizado')
+    .map(record => record.date)
+    .sort()[0] || null;
+
+  const isCountedForConsistency = (record: StudyRecord) => {
+    const normalizedCategory = (record.category || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    const isQuestionOrReview = normalizedCategory === 'questoes' || normalizedCategory === 'revisao';
+    const isUnplannedQuestionOrReview = !record.countInPlanning && isQuestionOrReview;
+
+    return normalizedCategory !== 'sincronizado' &&
+      (record.countInPlanning ||
+        (isUnplannedQuestionOrReview && !!planningStartDate && record.date >= planningStartDate));
+  };
+
   let filteredStudyRecords = studyRecords;
 
   if (activeFilters.subject) {
@@ -363,7 +381,7 @@ const calculateStats = async (
     // Usar Date.UTC para evitar problemas de fuso horário local na comparação semanal
     const recordDate = new Date(Date.UTC(year, month - 1, day));
     const date = record.date;
-    if (record.countInPlanning) uniqueDays.add(date);
+    if (isCountedForConsistency(record)) uniqueDays.add(date);
 
     let correctQs = 0;
     let totalQs = 0;
@@ -648,7 +666,7 @@ const calculateStats = async (
   };
 
   let totalDaysSinceFirstRecord = 0, failedStudyDays = 0, studyConsistencyPercentage = 0;
-  const allStudiedDays = new Set(studyRecords.filter(r => r.countInPlanning).map(r => r.date));
+  const allStudiedDays = new Set(studyRecords.filter(isCountedForConsistency).map(r => r.date));
   
   let plannedStudyDays = 0;
   let averageStudyTimePerPlannedDay = 0;
@@ -694,7 +712,7 @@ const calculateStats = async (
      }
     }
 
-  const dates = studyRecords.filter(r => r.countInPlanning).map(r => parseLocalDate(r.date));
+  const dates = studyRecords.filter(isCountedForConsistency).map(r => parseLocalDate(r.date));
   const firstStudyDate = dates.length > 0 ? new Date(Math.min.apply(null, dates.map(d => d.getTime()))) : null;
   const today = new Date();
   today.setDate(today.getDate() - (consistencyOffset * 30));
@@ -1053,7 +1071,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     // (constância, horas estudadas, questões etc.), mas NÃO devem descontar horas do ciclo
     // de estudos — só teoria/questões/leitura de lei/jurisprudência afetam o ciclo.
     const sortedRecords = [...currentStudyRecords]
-      .filter(record => record.countInPlanning && record.category !== 'revisao')
+      .filter(record => record.countInPlanning)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     sortedRecords.forEach(record => {
