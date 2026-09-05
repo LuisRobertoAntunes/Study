@@ -178,7 +178,7 @@ const EditalPage = () => {
                         <div className="flex items-center text-sm font-semibold">
                           <span className="bg-green-100 text-green-700 px-2 py-1 rounded-l-md" title="Acertos">{totalSubjectCompleted}</span>
                           <span className="bg-red-100 text-red-700 px-2 py-1" title="Erros">{reviewed}</span>
-                          <span className="bg-gray-200 text-gray-800 dark:text-gray-100 px-2 py-1" title="Total de Questões">{totalSubjectQuestions}</span>
+                          <span className="bg-gray-200 text-gray-800 dark:bg-gray-200 dark:text-gray-800 px-2 py-1" title="Total de Questões">{totalSubjectQuestions}</span>
                           <span className={`${getPerformancePillColor(subjectPerformance)} px-2 py-1 rounded-r-md`} title="Percentual de Acerto">{subjectPerformance}%</span>
                         </div>
                         <div className="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2"><div className={`${subjectColor} h-2 rounded-full`} style={{ width: `${subjectCompletionPercentage}%` }}></div></div>
