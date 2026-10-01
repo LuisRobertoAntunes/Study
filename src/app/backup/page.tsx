@@ -6,6 +6,7 @@ import { useData } from '../../context/DataContext';
 import DeleteAllDataModal from '../../components/DeleteAllDataModal';
 import ImportConfirmationModal from '../../components/ImportConfirmationModal';
 import { useNotification } from '../../context/NotificationContext';
+import { formatLocalDate } from '../../lib/dateUtils';
 
 interface BackupSettings {
   enabled: boolean;
@@ -80,7 +81,7 @@ const BackupPage = () => {
       )}`;
       const link = document.createElement("a");
       link.href = jsonString;
-      const date = new Date().toISOString().split('T')[0];
+      const date = formatLocalDate();
       link.download = `backup-study-completo-${date}.json`;
       link.click();
       showNotification('Backup exportado com sucesso!', 'success');

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Bar } from 'react-chartjs-2';
+import { addDaysToDateOnly, formatLocalDate, parseLocalDate } from '../lib/dateUtils';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -38,20 +39,14 @@ const WeeklyStudyChart = ({ dailyStudyHours, dailyQuestionStats }) => {
 
   const processChartData = (dailyData, dataKey) => {
     const weekLabels = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'];
-    const today = new Date();
-    const dayOfWeek = today.getDay(); // Sunday = 0, Monday = 1, etc.
-
-    // Adjust to have Sunday as the first day of the week
-    const firstDayOfWeek = new Date(today);
-    firstDayOfWeek.setDate(today.getDate() - dayOfWeek);
-    firstDayOfWeek.setHours(0, 0, 0, 0);
+    const today = formatLocalDate();
+    const dayOfWeek = parseLocalDate(today).getUTCDay(); // Sunday = 0, Monday = 1, etc.
+    const firstDayOfWeek = addDaysToDateOnly(today, -dayOfWeek);
 
     const weeklyData = Array(7).fill(0);
 
     for (let i = 0; i < 7; i++) {
-      const date = new Date(firstDayOfWeek);
-      date.setDate(firstDayOfWeek.getDate() + i);
-      const dateString = date.toISOString().split('T')[0];
+      const dateString = addDaysToDateOnly(firstDayOfWeek, i);
 
       if (dailyData && dailyData[dateString]) {
         if (dataKey === 'hours') {

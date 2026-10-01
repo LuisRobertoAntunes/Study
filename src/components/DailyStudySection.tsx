@@ -10,6 +10,7 @@ import {
   type TooltipItem,
 } from 'chart.js';
 import type { EditalSubject } from '../context/DataContext';
+import { formatDateOnlyBR, formatLocalDate } from '../lib/dateUtils';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -35,14 +36,10 @@ const DailyStudySection = ({ dailySubjectStudyTime, subjectColors, className }: 
   const [currentDate, setCurrentDate] = useState('');
 
   useEffect(() => {
-    const today = new Date();
-    const day = String(today.getDate()).padStart(2, '0');
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const year = today.getFullYear();
-    setCurrentDate(`${day}/${month}/${year}`);
+    setCurrentDate(formatDateOnlyBR(formatLocalDate()));
   }, []);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = formatLocalDate();
   const todaysStudyData = dailySubjectStudyTime && dailySubjectStudyTime[today] ? dailySubjectStudyTime[today] : {};
 
   const subjectColorMap = subjectColors.reduce<Record<string, string>>((acc, subject) => {

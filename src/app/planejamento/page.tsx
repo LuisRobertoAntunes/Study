@@ -14,6 +14,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { arrayMove } from '@dnd-kit/sortable';
+import { formatLocalDate } from '../../lib/dateUtils';
 
 // Interfaces
 interface Subject {
@@ -465,18 +466,14 @@ export default function Planejamento() {
   const confirmResetSession = async () => {
     if (!sessionToReset || !cycleGenerationTimestamp) return;
 
-    const cycleStartDate = new Date(cycleGenerationTimestamp);
-    cycleStartDate.setUTCHours(0, 0, 0, 0);
-    const cycleStartTimestamp = cycleStartDate.getTime();
+    const cycleStartDate = formatLocalDate(new Date(cycleGenerationTimestamp));
 
     const recordsToDelete = studyRecords.filter(record => {
-      const [year, month, day] = record.date.split('-').map(Number);
-      const recordTimestamp = new Date(Date.UTC(year, month - 1, day)).getTime();
 
       // Revisões não contam no progresso do ciclo, então resetar uma sessão não deve
       // apagar o histórico de revisões dessa matéria — só os registros que de fato
       // descontaram horas do ciclo.
-      return record.subjectId === sessionToReset.subjectId && record.category !== 'revisao' && recordTimestamp >= cycleStartTimestamp;
+      return record.subjectId === sessionToReset.subjectId && record.category !== 'revisao' && record.date >= cycleStartDate;
     });
 
     for (const record of recordsToDelete) {
@@ -748,7 +745,7 @@ export default function Planejamento() {
         onSaveAndClose={async (time, subject, topic) => {
           try {
             const newRecord: Partial<StudyRecord> = {
-              date: new Date().toISOString().split('T')[0],
+              date: formatLocalDate(),
               subject: subject || '',
               topic: topic || '',
               studyTime: time,

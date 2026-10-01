@@ -33,6 +33,7 @@ import {
   RadialLinearScale 
 } from 'chart.js';
 import 'chartjs-adapter-date-fns';
+import { addDaysToDateOnly, calendarDayNumber, formatCalendarDateFromParts, formatLocalDate } from '../../lib/dateUtils';
 import CategoryHoursChart from '../../components/CategoryHoursChart';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import DatePicker from 'react-datepicker';
@@ -97,46 +98,22 @@ export default function Estatisticas() {
   const daysUntilExam = React.useMemo(() => {
     const dataProva = stats.planMetadata?.data_prova;
     if (!dataProva) return null;
-    // Parseia "YYYY-MM-DD" como data local (evita bug de fuso horário do new Date(string))
-    const [y, m, d] = dataProva.split('-').map(Number);
-    const examDate = new Date(y, m - 1, d);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return Math.ceil((examDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return calendarDayNumber(dataProva) - calendarDayNumber(formatLocalDate());
   }, [stats.planMetadata?.data_prova]);
   
 const sortedDailyStudy = React.useMemo(() => {
   const data = stats.dailyStudyTime ?? {};
   if (Object.keys(data).length === 0) return [];
 
-  // Converte chaves para datas locais e ordena
-  const dates = Object.keys(data).map(d => new Date(d.replace(/-/g, '/')));
-  const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
-  const maxDate = new Date();
+  const firstDate = Object.keys(data).sort()[0];
+  const lastDate = formatLocalDate();
+  const dayCount = calendarDayNumber(lastDate) - calendarDayNumber(firstDate) + 1;
+  if (dayCount <= 0) return [];
 
-  const result = [];
-  let curr = new Date(minDate);
-
-  while (curr <= maxDate) {
-    // FUNÇÃO QUE EVITA O ERRO DE FUSO:
-    const yyyy = curr.getFullYear();
-    const mm = String(curr.getMonth() + 1).padStart(2, '0');
-    const dd = String(curr.getDate()).padStart(2, '0');
-    const dateStr = `${yyyy}-${mm}-${dd}`; // Formato YYYY-MM-DD fixo
-    
-    // Busca os dados usando a mesma chave formatada
-    const ms = data[dateStr] || 0;
-    
-    result.push({
-      date: dateStr,
-      hours: ms / 3600000
-    });
-    
-    // Adiciona 1 dia
-    curr.setDate(curr.getDate() + 1);
-  }
-  
-  return result;
+  return Array.from({ length: dayCount }, (_, index) => {
+    const date = addDaysToDateOnly(firstDate, index);
+    return { date, hours: (data[date] || 0) / 3600000 };
+  });
 }, [stats.dailyStudyTime]);
   const totalDays = sortedDailyStudy.length;
   const initialMin = Math.max(0, totalDays - 7)
@@ -185,32 +162,26 @@ const sortedDailyStudy = React.useMemo(() => {
 
   // Intervalo de datas selecionado nos filtros da aba Evolução (padrão: últimos 7 dias).
   const evolutionDateRange = React.useMemo(() => {
-    const startOfDay = (d: Date) => { const c = new Date(d); c.setHours(0, 0, 0, 0); return c; };
-    const endOfDay = (d: Date) => { const c = new Date(d); c.setHours(23, 59, 59, 999); return c; };
-
     if (evolutionPreset === 'custom') {
       if (!evolutionCustomStart || !evolutionCustomEnd) return null;
-      return { start: startOfDay(evolutionCustomStart), end: endOfDay(evolutionCustomEnd) };
+      return {
+        start: formatCalendarDateFromParts(evolutionCustomStart),
+        end: formatCalendarDateFromParts(evolutionCustomEnd),
+      };
     }
 
     const days = evolutionPreset === '7d' ? 7 : evolutionPreset === '30d' ? 30 : evolutionPreset === '90d' ? 90 : 365;
-    const end = endOfDay(new Date());
-    const start = startOfDay(new Date());
-    start.setDate(start.getDate() - (days - 1));
-    return { start, end };
+    const end = formatLocalDate();
+    return { start: addDaysToDateOnly(end, -(days - 1)), end };
   }, [evolutionPreset, evolutionCustomStart, evolutionCustomEnd]);
 
   // Datas de dailyQuestionStats dentro do período selecionado, já ordenadas.
-  // Parse manual (substitui "-" por "/") para evitar o bug de fuso horário do new Date(string).
   const filteredQuestionDates = React.useMemo(() => {
     const allDates = Object.keys(stats.dailyQuestionStats ?? {});
     const inRange = evolutionDateRange
-      ? allDates.filter(date => {
-          const d = new Date(date.replace(/-/g, '/'));
-          return d >= evolutionDateRange.start && d <= evolutionDateRange.end;
-        })
+      ? allDates.filter(date => date >= evolutionDateRange.start && date <= evolutionDateRange.end)
       : allDates;
-    return inRange.sort((a, b) => new Date(a.replace(/-/g, '/')).getTime() - new Date(b.replace(/-/g, '/')).getTime());
+    return inRange.sort((a, b) => a.localeCompare(b));
   }, [stats.dailyQuestionStats, evolutionDateRange]);
 
   // Totais do período selecionado: Total de Resoluções, Certas, Erradas e Taxa de Acerto.

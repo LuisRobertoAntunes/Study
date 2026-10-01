@@ -6,6 +6,7 @@ import { BsPlusCircleFill, BsPlayFill, BsCheckCircleFill, BsXCircleFill, BsClock
 import PlanSelector from '../../components/PlanSelector';
 import StudyRegisterModal from '../../components/StudyRegisterModal';
 import ConfirmationModal from '../../components/ConfirmationModal';
+import { calendarDayNumber, formatDateOnlyBR, formatLocalDate } from '../../lib/dateUtils';
 
 // Category display map for FilterModal
 const categoryDisplayMap: { [key: string]: string } = {
@@ -121,8 +122,7 @@ export default function Revisao() {
 
   // Filter review records based on active tab
   const filteredReviewRecords = useMemo(() => {
-    const now = new Date();
-    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())); // Normalize 'today' to UTC start of the day
+    const today = formatLocalDate();
 
     // Se a aba for 'completed', incluímos também estudos espontâneos da categoria 'revisao'
     if (activeTab === 'completed') {
@@ -159,7 +159,7 @@ export default function Revisao() {
       };
 
       return [...completedScheduled, ...spontaneousReviews].sort((a, b) => {
-        const dateDifference = new Date(b.displayDate).getTime() - new Date(a.displayDate).getTime();
+        const dateDifference = b.displayDate.localeCompare(a.displayDate);
         if (dateDifference !== 0) return dateDifference;
 
         // Em um mesmo dia, mostra primeiro a sessão concluída mais recente.
@@ -169,27 +169,18 @@ export default function Revisao() {
 
     // Para as outras abas, mantemos a lógica original
     return reviewRecords.filter(record => {
-      const [rYear, rMonth, rDay] = record.scheduledDate.split('-').map(Number);
-      const recordDate = new Date(Date.UTC(rYear, rMonth - 1, rDay)); // Normalize 'recordDate' to UTC start of the day
-
       if (activeTab === 'scheduled') {
-        return !record.completedDate && !record.ignored && recordDate >= today;
+        return !record.completedDate && !record.ignored && record.scheduledDate >= today;
       } else if (activeTab === 'overdue') {
-        return !record.completedDate && !record.ignored && recordDate < today;
+        return !record.completedDate && !record.ignored && record.scheduledDate < today;
       } else if (activeTab === 'ignored') {
         return record.ignored;
       }
       return true;
     }).sort((a, b) => {
-      const [aYear, aMonth, aDay] = a.scheduledDate.split('-').map(Number);
-      const dateA = new Date(Date.UTC(aYear, aMonth - 1, aDay));
-
-      const [bYear, bMonth, bDay] = b.scheduledDate.split('-').map(Number);
-      const dateB = new Date(Date.UTC(bYear, bMonth - 1, bDay));
-
       const dateDifference = activeTab === 'scheduled' || activeTab === 'overdue'
-        ? dateA.getTime() - dateB.getTime()
-        : dateB.getTime() - dateA.getTime();
+        ? a.scheduledDate.localeCompare(b.scheduledDate)
+        : b.scheduledDate.localeCompare(a.scheduledDate);
       if (dateDifference !== 0) return dateDifference;
 
       // Para a mesma data, mantém o item mais recentemente criado no topo.
@@ -214,14 +205,7 @@ export default function Revisao() {
   }, [filteredReviewRecords]);
 
   const getDaysRemainingText = (scheduledDateStr: string) => {
-    const [sYear, sMonth, sDay] = scheduledDateStr.split('-').map(Number);
-    const scheduledDate = new Date(Date.UTC(sYear, sMonth - 1, sDay));
-
-    const now = new Date();
-    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-
-    const diffTime = scheduledDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = calendarDayNumber(scheduledDateStr) - calendarDayNumber(formatLocalDate());
 
     if (diffDays === 0) return 'HOJE';
     if (diffDays === 1) return 'AMANHÃ';
@@ -291,12 +275,11 @@ export default function Revisao() {
             Object.entries(groupedReviewRecords).sort((a, b) => {
               // Para 'scheduled' e 'overdue': ordena crescente (mais próximas primeiro)
               // Para 'completed' e 'ignored': ordena decrescente (mais recentes primeiro)
-              const dateA = new Date(a[0]).getTime();
-              const dateB = new Date(b[0]).getTime();
+              const dateDifference = a[0].localeCompare(b[0]);
               if (activeTab === 'scheduled' || activeTab === 'overdue') {
-                return dateA - dateB; // Crescente: hoje/amanhã primeiro
+                return dateDifference; // Crescente: hoje/amanhã primeiro
               } else {
-                return dateB - dateA; // Decrescente: mais recentes primeiro
+                return -dateDifference; // Decrescente: mais recentes primeiro
               }
             }).map(([dateKey, recordsForDate]) => (
               <div key={dateKey} className="mb-8">
@@ -307,11 +290,11 @@ export default function Revisao() {
                     if (activeTab !== 'completed' && activeTab !== 'ignored' && (daysText === 'HOJE' || daysText === 'AMANHÃ' || daysText.includes('DIAS ATRASADOS'))) {
                       return daysText;
                     }
-                    const date = new Date(dateKey);
-                    const day = date.getUTCDate().toString().padStart(2, '0');
-                    const month = date.toLocaleDateString('pt-BR', { month: 'short', timeZone: 'UTC' }).toUpperCase().substring(0, 3);
-                    const year = date.getUTCFullYear().toString().slice(-2);
-                    const weekday = date.toLocaleDateString('pt-BR', { weekday: 'short', timeZone: 'UTC' }).toUpperCase().substring(0, 3);
+                    const dateParts = dateKey.split('-');
+                    const day = dateParts[2];
+                    const month = formatDateOnlyBR(dateKey, { month: 'short' }).toUpperCase().substring(0, 3);
+                    const year = dateParts[0].slice(-2);
+                    const weekday = formatDateOnlyBR(dateKey, { weekday: 'short' }).toUpperCase().substring(0, 3);
                     return (
                       <div className="flex items-center justify-start">
                         <span className="text-5xl font-extrabold mr-1">
@@ -328,12 +311,7 @@ export default function Revisao() {
                 </h2>
                 {recordsForDate.map((record) => {
                   const studyRecord = studyRecords.find(sr => sr.id === record.studyRecordId);
-                  const scheduledDate = new Date(record.scheduledDate);
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-
-                  const diffTime = scheduledDate.getTime() - today.getTime();
-                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                  const diffDays = calendarDayNumber(record.scheduledDate) - calendarDayNumber(formatLocalDate());
 
                   return (
                     <React.Fragment key={record.id}>
@@ -414,7 +392,7 @@ export default function Revisao() {
                             <div className="flex justify-between items-center">
                               {/* Grupo 1: Identificação */}
                               <div className="flex items-center space-x-3 text-sm text-gray-600 dark:text-gray-300">
-                                <span className="font-bold">{new Date(record.displayDate || record.scheduledDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })}</span>
+                                <span className="font-bold">{formatDateOnlyBR(record.displayDate || record.scheduledDate, { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                                 <span>{record.topic}</span>
                               </div>
 

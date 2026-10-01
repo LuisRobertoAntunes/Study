@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 import { useData } from '../context/DataContext';
 import { BsCheckCircleFill, BsXCircleFill } from 'react-icons/bs';
+import { calendarDayNumber, formatLocalDate } from '../lib/dateUtils';
 
 const RevisionsSection = () => {
   const { reviewRecords, updateReviewRecord } = useData();
@@ -33,7 +34,7 @@ const RevisionsSection = () => {
   const handleCompleteReview = (id: string) => {
     const recordToUpdate = reviewRecords.find(record => record.id === id);
     if (recordToUpdate) {
-      updateReviewRecord({ ...recordToUpdate, completedDate: new Date().toISOString().split('T')[0], ignored: false });
+      updateReviewRecord({ ...recordToUpdate, completedDate: formatLocalDate(), ignored: false });
     }
   };
 
@@ -45,11 +46,7 @@ const RevisionsSection = () => {
   };
   
   const getDaysDifference = (scheduledDate: string) => {
-    const now = new Date();
-    const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-    const [sYear, sMonth, sDay] = scheduledDate.split('-').map(Number);
-    const scheduledDateUtc = new Date(Date.UTC(sYear, sMonth - 1, sDay));
-    return Math.round((scheduledDateUtc.getTime() - todayUtc.getTime()) / (1000 * 60 * 60 * 24));
+    return calendarDayNumber(scheduledDate) - calendarDayNumber(formatLocalDate());
   };
 
   return (

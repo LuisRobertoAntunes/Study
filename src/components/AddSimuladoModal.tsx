@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { FaTimes, FaCalendarAlt, FaCheckCircle, FaTimesCircle, FaMinusCircle, FaPercentage, FaStar, FaTrash, FaPencilAlt } from 'react-icons/fa';
 import { useData } from '../context/DataContext';
 import type { SimuladoRecord } from '../app/actions';
+import { formatLocalDate } from '../lib/dateUtils';
 
 interface Subject {
   id?: string;
@@ -33,7 +34,7 @@ export default function AddSimuladoModal({ isOpen, onClose, initialSimulado }: A
   // Texto bruto do campo "Peso" por disciplina, para permitir digitar "1," ou "1,5"
   // sem que o valor numérico controlado apague a vírgula enquanto o usuário digita.
   const [weightInputs, setWeightInputs] = useState<string[]>([]);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(formatLocalDate());
   const [examStyle, setExamStyle] = useState('Múltipla Escolha');
   const [simuladoName, setSimuladoName] = useState('');
   const [banca, setBanca] = useState('');
@@ -63,7 +64,7 @@ export default function AddSimuladoModal({ isOpen, onClose, initialSimulado }: A
         setWeightInputs(initialSubjects.map(s => String(s.weight).replace('.', ',')));
       } else {
         // Resetar o formulário para um novo simulado
-        setSelectedDate(new Date().toISOString().split('T')[0]);
+        setSelectedDate(formatLocalDate());
         setExamStyle('Múltipla Escolha');
         setSimuladoName('');
         setBanca('');
@@ -183,7 +184,7 @@ export default function AddSimuladoModal({ isOpen, onClose, initialSimulado }: A
       setTimeSpent('00:00:00');
       setComments('');
       setSubjects([]); // This will reset the table
-      setSelectedDate(new Date().toISOString().split('T')[0]); // Reset date
+      setSelectedDate(formatLocalDate()); // Reset date
       setExamStyle('Múltipla Escolha'); // Reset exam style
     } catch (error) {
       console.error("Falha ao salvar/atualizar simulado do modal:", error);
@@ -322,4 +323,3 @@ export default function AddSimuladoModal({ isOpen, onClose, initialSimulado }: A
     </div>
   );
 }
-

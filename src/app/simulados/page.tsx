@@ -9,6 +9,7 @@ import SimuladoLineChart from '../../components/SimuladoLineChart';
 import { useData } from '../../context/DataContext';
 import { SimuladoRecord } from '../../app/actions';
 import ConfirmationModal from '../../components/ConfirmationModal';
+import { formatDateOnlyBR } from '../../lib/dateUtils';
 
 export default function SimuladosPage() {
   const { simuladoRecords, deleteSimuladoRecord } = useData();
@@ -61,8 +62,7 @@ export default function SimuladosPage() {
     totalQuestionsLastSimulado > 0 ? Math.round((acertos / totalQuestionsLastSimulado) * 100) : 0;
 
   const formatDateForChartLabel = (dateString: string): string => {
-    const date = new Date(dateString + 'T00:00:00');
-    return date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' });
+    return formatDateOnlyBR(dateString, { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
   // Processar dados para os gráficos (com proteção contra strings/undefined)

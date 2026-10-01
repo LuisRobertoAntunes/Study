@@ -15,6 +15,7 @@ import DailyStudySection from '../../components/DailyStudySection';
 import { FaCheck, FaTimes, FaChevronLeft, FaChevronRight, FaClock, FaCalendarDay, FaBullseye, FaFileAlt } from 'react-icons/fa';
 import RemindersSection from '../../components/RemindersSection';
 import LastActivitiesSection from '../../components/LastActivitiesSection';
+import { formatDateOnlyBR } from '../../lib/dateUtils';
 
 
 // Interfaces para os dados
@@ -88,17 +89,11 @@ const StudyConsistencyTracker = ({
 }: StudyConsistencyTrackerProps) => {
   const formatDate = (date: string | null) => {
     if (!date) return '';
-    const d = new Date(date);
-    d.setDate(d.getDate() + 1); // Ajuste para exibição correta da data
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    return `${day}/${month}`;
+    return formatDateOnlyBR(date, { day: '2-digit', month: '2-digit' });
   };
 
   const getTooltipText = (day: ConsistencyDay) => {
-    const date = new Date(day.date);
-    date.setDate(date.getDate() + 1); // Ajuste para exibição correta da data
-    const formattedDate = date.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const formattedDate = formatDateOnlyBR(day.date, { weekday: 'long', day: 'numeric', month: 'long' });
 
     let statusText = 'Não estudado';
     if (day.status === 'studied') statusText = 'Estudado';

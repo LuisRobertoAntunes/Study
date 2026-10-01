@@ -7,6 +7,7 @@ import { getJsonContent, getStudyRecords, StudyRecord } from '../../actions';
 import { useData } from '../../../context/DataContext';
 import { useTheme } from '../../../context/ThemeContext';
 import StudyRegisterModal from '../../../components/StudyRegisterModal';
+import { formatDateOnlyBR, formatLocalDate, parseLocalDate } from '../../../lib/dateUtils';
 
 import { Line } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, TimeScale } from 'chart.js';
@@ -234,7 +235,7 @@ export default function MateriaDetalhes() {
   const aggregateDailyData = useCallback(() => {
     const dailyData: { [key: string]: number } = {};
     filteredStudyRecords.forEach(record => {
-      const date = new Date(record.date).toISOString().split('T')[0];
+      const date = record.date;
       dailyData[date] = (dailyData[date] || 0) + (record.studyTime || 0);
     });
     return Object.keys(dailyData).sort().map(date => ({ date, time: dailyData[date] }));
@@ -243,9 +244,10 @@ export default function MateriaDetalhes() {
   const aggregateWeeklyData = useCallback(() => {
     const weeklyData: { [key: string]: number } = {};
     filteredStudyRecords.forEach(record => {
-      const date = new Date(record.date);
-      const startOfWeek = new Date(date.setDate(date.getDate() - date.getDay())).toISOString().split('T')[0];
-      weeklyData[startOfWeek] = (weeklyData[startOfWeek] || 0) + (record.studyTime || 0);
+      const date = parseLocalDate(record.date);
+      date.setUTCDate(date.getUTCDate() - date.getUTCDay());
+      const localWeekStart = formatLocalDate(date);
+      weeklyData[localWeekStart] = (weeklyData[localWeekStart] || 0) + (record.studyTime || 0);
     });
     return Object.keys(weeklyData).sort().map(date => ({ date, time: weeklyData[date] }));
   }, [filteredStudyRecords]);
@@ -253,8 +255,8 @@ export default function MateriaDetalhes() {
   const aggregateMonthlyData = useCallback(() => {
     const monthlyData: { [key: string]: number } = {};
     filteredStudyRecords.forEach(record => {
-      const date = new Date(record.date);
-      const month = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+      const date = parseLocalDate(record.date);
+      const month = `${date.getUTCFullYear()}-${(date.getUTCMonth() + 1).toString().padStart(2, '0')}`;
       monthlyData[month] = (monthlyData[month] || 0) + (record.studyTime || 0);
     });
     return Object.keys(monthlyData).sort().map(date => ({ date, time: monthlyData[date] }));
@@ -546,7 +548,7 @@ export default function MateriaDetalhes() {
                 <tbody>
                   {filteredStudyRecords.map((record, index) => (
                     <tr key={record.id || index} className="bg-white dark:bg-gray-700">
-                      <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-600 whitespace-nowrap text-gray-800 dark:text-gray-200">{new Date(record.date).toLocaleDateString()}</td>
+                      <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-600 whitespace-nowrap text-gray-800 dark:text-gray-200">{formatDateOnlyBR(record.date)}</td>
                       <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">{record.topic}</td>
                       <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-600 whitespace-nowrap text-gray-800 dark:text-gray-200">{formatTime(record.studyTime)}</td>
                       <td className="py-2 px-4 border-b border-gray-200 dark:border-gray-600 text-green-600 dark:text-green-400 font-semibold">{record.questions?.correct || 0}</td>

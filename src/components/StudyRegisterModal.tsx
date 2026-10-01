@@ -8,6 +8,7 @@ import { StudyRecord } from '@/context/DataContext';
 import AddReviewModal from './AddReviewModal';
 import AddSubjectModal from './AddSubjectModal';
 import { FaInfoCircle } from 'react-icons/fa';
+import { addDaysToDateOnly, formatDateOnlyBR, formatLocalDate, parseBrazilianDate } from '../lib/dateUtils';
 
 // --- INTERFACES HIERÁRQUICAS ATUALIZADAS ---
 interface Topic extends EditalTopic {}
@@ -136,10 +137,7 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
   showDeleteButton = false, 
 }) => {
   const getLocalYYYYMMDD = (date = new Date()) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return formatLocalDate(date);
   };
 
   const formatTime = (ms: number): string => {
@@ -174,6 +172,7 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
   const [isReviewSchedulingEnabled, setIsReviewSchedulingEnabled] = useState(false);
   const [reviewPeriods, setReviewPeriods] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState(getLocalYYYYMMDD());
+  const [manualDateInput, setManualDateInput] = useState('');
   const [questions, setQuestions] = useState<Question[]>([{ correct: 0, incorrect: 0 }]);
   const [pages, setPages] = useState<Page[]>([{ start: 0, end: 0 }]);
   const [videos, setVideos] = useState<Video[]>([{ title: '', start: '00:00:00', end: '00:00:00' }]);
@@ -202,14 +201,8 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
   ];
 
   const handleDateSelect = (type: 'today' | 'yesterday') => {
-    const today = new Date();
-    let dateToSet = today;
-    if (type === 'yesterday') {
-      const yesterday = new Date();
-      yesterday.setDate(today.getDate() - 1);
-      dateToSet = yesterday;
-    }
-    setSelectedDate(getLocalYYYYMMDD(dateToSet));
+    const today = formatLocalDate();
+    setSelectedDate(type === 'yesterday' ? addDaysToDateOnly(today, -1) : today);
     setShowDatePicker(false);
   };
 
@@ -278,7 +271,7 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
         setReviewPeriods(initialRecord.reviewPeriods ?? []);
         setSelectedDate(initialRecord.date || getLocalYYYYMMDD());
         const today = getLocalYYYYMMDD();
-        const yesterday = getLocalYYYYMMDD(new Date(new Date().setDate(new Date().getDate() - 1)));
+        const yesterday = addDaysToDateOnly(today, -1);
         setShowDatePicker(Boolean(initialRecord.date && initialRecord.date !== today && initialRecord.date !== yesterday));
         const total = initialRecord.questions?.total || 0;
         const correct = initialRecord.questions?.correct || 0;
@@ -341,22 +334,24 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
   const handleSave = () => {
     if (!validateForm()) return;
 
+    const dateToSave = showDatePicker ? parseBrazilianDate(manualDateInput) : selectedDate;
+    if (!dateToSave) {
+      showNotification('Informe uma data válida no formato DD/MM/AAAA.', 'error');
+      return;
+    }
+
     if (countInPlanning && cycleGenerationTimestamp) {
-      const [year, month, day] = selectedDate.split('-').map(Number);
-      const recordDate = new Date(Date.UTC(year, month - 1, day));
-  
-      const cycleCreationDate = new Date(cycleGenerationTimestamp);
-      cycleCreationDate.setUTCHours(0, 0, 0, 0);
-  
-      if (recordDate.getTime() < cycleCreationDate.getTime()) {
-        showNotification('Não é possível contabilizar um estudo anterior à criação do planejamento.', 'error');
+      const cycleCreationDate = formatLocalDate(new Date(cycleGenerationTimestamp));
+
+      if (dateToSave < cycleCreationDate) {
+        showNotification(`A data do estudo (${formatDateOnlyBR(dateToSave)}) é anterior à criação do planejamento (${formatDateOnlyBR(cycleCreationDate)}).`, 'error');
         return;
       }
     }
 
     const studyRecord: StudyRecord = {
       id: initialRecord?.id || '',
-      date: selectedDate,
+      date: dateToSave,
       subjectId: subjects.find(subject => subject.subject === selectedSubject)?.id || '',
       subject: selectedSubject,
       topic: selectedTopic,
@@ -423,10 +418,10 @@ const StudyRegisterModal: React.FC<StudyRegisterModalProps> = ({
               </div>
             )}
             <div className="flex items-center space-x-2 mb-4">
-              <button onClick={() => handleDateSelect('today')} className={`py-2 px-4 rounded-lg font-semibold ${selectedDate === new Date().toISOString().split('T')[0] && !showDatePicker ? 'bg-gold-600 text-white dark:bg-gold-700' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600'}`}>Hoje</button>
-              <button onClick={() => handleDateSelect('yesterday')} className={`py-2 px-4 rounded-lg font-semibold ${selectedDate === new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split('T')[0] && !showDatePicker ? 'bg-gold-600 text-white dark:bg-gold-700' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600'}`}>Ontem</button>
-              <button onClick={() => setShowDatePicker(true)} className={`py-2 px-4 rounded-lg font-semibold ${showDatePicker ? 'bg-gold-600 text-white dark:bg-gold-700' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600'}`}>Outro</button>
-              {showDatePicker && <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="py-2 px-3 rounded-lg font-semibold border-gray-300 border focus:outline-none focus:ring-gold-500 focus:border-gold-500 text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100" />}
+              <button onClick={() => handleDateSelect('today')} className={`py-2 px-4 rounded-lg font-semibold ${selectedDate === formatLocalDate() && !showDatePicker ? 'bg-gold-600 text-white dark:bg-gold-700' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600'}`}>Hoje</button>
+              <button onClick={() => handleDateSelect('yesterday')} className={`py-2 px-4 rounded-lg font-semibold ${selectedDate === addDaysToDateOnly(formatLocalDate(), -1) && !showDatePicker ? 'bg-gold-600 text-white dark:bg-gold-700' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600'}`}>Ontem</button>
+              <button onClick={() => { setManualDateInput(formatDateOnlyBR(selectedDate)); setShowDatePicker(true); }} className={`py-2 px-4 rounded-lg font-semibold ${showDatePicker ? 'bg-gold-600 text-white dark:bg-gold-700' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600'}`}>Outro</button>
+              {showDatePicker && <input type="text" inputMode="numeric" autoComplete="off" maxLength={10} placeholder="DD/MM/AAAA" aria-label="Data do estudo (DD/MM/AAAA)" value={manualDateInput} onChange={(e) => { const value = e.target.value; setManualDateInput(value); const parsedDate = parseBrazilianDate(value); if (parsedDate) setSelectedDate(parsedDate); }} className="w-36 py-2 px-3 rounded-lg font-semibold border-gray-300 border focus:outline-none focus:ring-gold-500 focus:border-gold-500 text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100" />}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="md:col-span-2">

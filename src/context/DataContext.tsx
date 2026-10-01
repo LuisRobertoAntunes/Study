@@ -29,6 +29,7 @@ import {
   addOrUpdateSubjectAction
 } from '../app/actions';
 import { useNotification } from './NotificationContext';
+import { addDaysToDateOnly, calendarDayNumber, formatLocalDate, parseLocalDate } from '../lib/dateUtils';
 
 // --- INTERFACES HIERÁRQUICAS ---
 export interface EditalTopic {
@@ -259,17 +260,13 @@ const calculateStats = async (
 
   let weeklyHours = 0;
   let weeklyQuestions = 0;
-  const todayForWeek = new Date();
-  // Normalizar para o início do dia em UTC para consistência com os registros
-  const todayUTC = new Date(Date.UTC(todayForWeek.getFullYear(), todayForWeek.getMonth(), todayForWeek.getDate()));
-  const dayOfWeek = todayUTC.getUTCDay();
-  const firstDayOfWeek = new Date(todayUTC);
-  const diff = todayUTC.getUTCDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-  firstDayOfWeek.setUTCDate(diff);
+  const todayDateKey = formatLocalDate();
+  const dayOfWeek = parseLocalDate(todayDateKey).getUTCDay();
+  const firstDateKey = addDaysToDateOnly(todayDateKey, dayOfWeek === 0 ? -6 : 1 - dayOfWeek);
+  const firstDayOfWeek = parseLocalDate(firstDateKey);
   firstDayOfWeek.setUTCHours(0, 0, 0, 0);
 
-  const lastDayOfWeek = new Date(firstDayOfWeek);
-  lastDayOfWeek.setUTCDate(firstDayOfWeek.getUTCDate() + 6);
+  const lastDayOfWeek = parseLocalDate(addDaysToDateOnly(firstDateKey, 6));
   lastDayOfWeek.setUTCHours(23, 59, 59, 999);
 
   let editalData: EditalSubject[] = [];
@@ -367,13 +364,10 @@ const calculateStats = async (
     filteredStudyRecords = filteredStudyRecords.filter(record => record.category === activeFilters.category);
   }
   if (activeFilters.startDate) {
-    const startDate = new Date(activeFilters.startDate);
-    filteredStudyRecords = filteredStudyRecords.filter(record => new Date(record.date) >= startDate);
+    filteredStudyRecords = filteredStudyRecords.filter(record => record.date >= activeFilters.startDate);
   }
   if (activeFilters.endDate) {
-    const endDate = new Date(activeFilters.endDate);
-    endDate.setDate(endDate.getDate() + 1);
-    filteredStudyRecords = filteredStudyRecords.filter(record => new Date(record.date) < endDate);
+    filteredStudyRecords = filteredStudyRecords.filter(record => record.date <= activeFilters.endDate);
   }
 
   filteredStudyRecords.forEach(record => {
@@ -516,7 +510,7 @@ const calculateStats = async (
       const childStats = aggregateStatsRecursively(subTopic);
       aggregatedCompleted += childStats.completed;
       aggregatedTotal += childStats.total;
-      if (childStats.last_study !== '-' && (mostRecentStudy === '-' || new Date(childStats.last_study) > new Date(mostRecentStudy))) {
+      if (childStats.last_study !== '-' && (mostRecentStudy === '-' || childStats.last_study > mostRecentStudy)) {
         mostRecentStudy = childStats.last_study;
       }
       if (!childStats.is_completed) allChildrenCompleted = false;
@@ -658,13 +652,6 @@ const calculateStats = async (
     ? (weightedPoints / weightedMaxPoints) * 100
     : 0;
 
-  // Parseia "YYYY-MM-DD" como data LOCAL (evita o bug de new Date(string) que
-  // interpreta a string como UTC e "perde" um dia em fusos negativos como o do Brasil).
-  const parseLocalDate = (dateStr: string): Date => {
-    const [y, m, d] = dateStr.split('-').map(Number);
-    return new Date(y, m - 1, d);
-  };
-
   let totalDaysSinceFirstRecord = 0, failedStudyDays = 0, studyConsistencyPercentage = 0;
   const allStudiedDays = new Set(studyRecords.filter(isCountedForConsistency).map(r => r.date));
   
@@ -672,53 +659,27 @@ const calculateStats = async (
   let averageStudyTimePerPlannedDay = 0;
 
   if (allStudiedDays.size > 0) {
-    const sortedDates = Array.from(allStudiedDays).map(d => parseLocalDate(d)).sort((a, b) => a.getTime() - b.getTime());
-    const firstDay = sortedDates[0];
-    const lastDay = new Date();
-    lastDay.setHours(0, 0, 0, 0);
+    const firstDay = Array.from(allStudiedDays).sort()[0];
+    const lastDay = formatLocalDate();
     if (lastDay >= firstDay) {
-      totalDaysSinceFirstRecord = Math.ceil((lastDay.getTime() - firstDay.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-      let missedStudyDays = 0;
+      totalDaysSinceFirstRecord = calendarDayNumber(lastDay) - calendarDayNumber(firstDay) + 1;
       const dayNameToNum: { [key: string]: number } = { 'Domingo': 0, 'Segunda': 1, 'Terça': 2, 'Quarta': 3, 'Quinta': 4, 'Sexta': 5, 'Sábado': 6 };
       const studyDayNums = new Set(studyDays.map(d => dayNameToNum[d]));
-      for (let d = new Date(firstDay); d <= lastDay; d.setDate(d.getDate() + 1)) {
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        const dateStr = `${year}-${month}-${day}`;
-        if (studyDayNums.has(d.getDay()) && !allStudiedDays.has(dateStr)) missedStudyDays++;
+      for (let i = 0; i < totalDaysSinceFirstRecord; i++) {
+        const dateKey = addDaysToDateOnly(firstDay, i);
+        const dayOfWeek = parseLocalDate(dateKey).getUTCDay();
+        if (studyDayNums.has(dayOfWeek) && !allStudiedDays.has(dateKey)) failedStudyDays++;
+        if (studyDayNums.has(dayOfWeek)) plannedStudyDays++;
       }
-      failedStudyDays = missedStudyDays;
-     if (totalDaysSinceFirstRecord > 0) {
-        const plannedStudyDays = Array.from(
-          { length: totalDaysSinceFirstRecord },
-            (_, i) => {
-               const d = new Date(firstDay);
-                d.setDate(d.getDate() + i);
-                return d;
-            }
-        ).filter(d => studyDayNums.has(d.getDay())).length;
-
-  averageStudyTimePerPlannedDay =
-    plannedStudyDays > 0
-      ? totalStudyTime / plannedStudyDays
-      : 0;
-
-  studyConsistencyPercentage =
-    plannedStudyDays > 0
-      ? (allStudiedDays.size / plannedStudyDays) * 100
-      : 100;
-      }
-     }
+      averageStudyTimePerPlannedDay = plannedStudyDays > 0 ? totalStudyTime / plannedStudyDays : 0;
+      studyConsistencyPercentage = plannedStudyDays > 0 ? (allStudiedDays.size / plannedStudyDays) * 100 : 100;
     }
+  }
 
-  const dates = studyRecords.filter(isCountedForConsistency).map(r => parseLocalDate(r.date));
-  const firstStudyDate = dates.length > 0 ? new Date(Math.min.apply(null, dates.map(d => d.getTime()))) : null;
-  const today = new Date();
-  today.setDate(today.getDate() - (consistencyOffset * 30));
-  const consistencyEndDate = new Date(today);
-  const consistencyStartDate = new Date(today);
-  consistencyStartDate.setDate(today.getDate() - 29);
+  const firstStudyDate = Array.from(allStudiedDays).sort()[0] || null;
+  const consistencyTodayDateKey = formatLocalDate();
+  const consistencyEndDate = addDaysToDateOnly(consistencyTodayDateKey, -(consistencyOffset * 30));
+  const consistencyStartDate = addDaysToDateOnly(consistencyEndDate, -29);
 
   const consistencyDaysData: any[] = [];
   let consecutiveDays = 0;
@@ -727,37 +688,31 @@ const calculateStats = async (
     const studyDayNums = new Set(studyDays.map(d => dayNameToNum[d]));
     if (consistencyOffset === 0) {
       for (let i = 0; i < 30; i++) {
-        const d = new Date(); d.setDate(d.getDate() - i); d.setHours(0, 0, 0, 0);
-        if (d < firstStudyDate) break;
-        const dateStr = d.toISOString().split('T')[0];
-        if (studyDayNums.has(d.getDay())) {
-          if (allStudiedDays.has(dateStr)) consecutiveDays++;
+        const dateKey = addDaysToDateOnly(consistencyTodayDateKey, -i);
+        if (dateKey < firstStudyDate) break;
+        const dayOfWeek = parseLocalDate(dateKey).getUTCDay();
+        if (studyDayNums.has(dayOfWeek)) {
+          if (allStudiedDays.has(dateKey)) consecutiveDays++;
           else break;
         } else consecutiveDays++;
       }
     }
     for (let i = 29; i >= 0; i--) {
-      const d = new Date(today); d.setDate(today.getDate() - i); d.setHours(0, 0, 0, 0);
-      const isActive = d >= firstStudyDate;
-
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      const dateStr = `${year}-${month}-${day}`;
-
-      const isStudyDay = studyDayNums.has(d.getDay());
-      const studied = allStudiedDays.has(dateStr);
+      const dateKey = addDaysToDateOnly(consistencyEndDate, -i);
+      const isActive = dateKey >= firstStudyDate;
+      const dayOfWeek = parseLocalDate(dateKey).getUTCDay();
+      const isStudyDay = studyDayNums.has(dayOfWeek);
+      const studied = allStudiedDays.has(dateKey);
       let status = 'inactive';
       if (isActive) {
         if (isStudyDay) {
           status = studied ? 'studied' : 'failed';
         } else {
-          // Dia de folga: se mesmo assim houve estudo, conta como estudado
-          // (mantendo a marcação visual de que era um dia de folga).
+          // Dia de folga: se mesmo assim houve estudo, mantém a marcação visual de folga.
           status = studied ? 'rest_studied' : 'rest';
         }
       }
-      consistencyDaysData.push({ date: dateStr, status, active: isActive });
+      consistencyDaysData.push({ date: dateKey, status, active: isActive });
     }
   }
   const isConsistencyPrevDisabled = !firstStudyDate || consistencyStartDate <= firstStudyDate;
@@ -839,8 +794,8 @@ const calculateStats = async (
     studyConsistencyPercentage,
     consecutiveDays,
     consistencyData: consistencyDaysData,
-    consistencyStartDate: consistencyStartDate.toISOString(),
-    consistencyEndDate: consistencyEndDate.toISOString(),
+    consistencyStartDate,
+    consistencyEndDate,
     isConsistencyPrevDisabled,
     isConsistencyNextDisabled,
     totalTopics,
@@ -992,10 +947,8 @@ const calculateTopicScores = (
         }
       });
 
-      const sortedRecords = recordsForTopic.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      const lastStudyDate = new Date(sortedRecords[0].date);
-      const today = new Date();
-      daysSinceLastStudy = Math.floor((today.getTime() - lastStudyDate.getTime()) / (1000 * 60 * 60 * 24));
+      const sortedRecords = recordsForTopic.sort((a, b) => b.date.localeCompare(a.date));
+      daysSinceLastStudy = calendarDayNumber(formatLocalDate()) - calendarDayNumber(sortedRecords[0].date);
     }
 
     const hitRate = totalQuestions > 0 ? correctQuestions / totalQuestions : 1.0;
@@ -1072,7 +1025,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     // de estudos — só teoria/questões/leitura de lei/jurisprudência afetam o ciclo.
     const sortedRecords = [...currentStudyRecords]
       .filter(record => record.countInPlanning)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      .sort((a, b) => a.date.localeCompare(b.date));
 
     sortedRecords.forEach(record => {
       totalProgressMinutes += record.studyTime / 60000;
@@ -1407,13 +1360,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         }
 
         // Fallback para registros mais antigos ou com formato de ID diferente
-        const [year, month, day] = r.date.split('-').map(Number);
-        const recordDate = new Date(Date.UTC(year, month - 1, day));
-
         const cycleDate = new Date(cycleGenerationTimestamp);
-        cycleDate.setUTCHours(0, 0, 0, 0);
-
-        return recordDate.getTime() >= cycleDate.getTime();
+        return r.date >= formatLocalDate(cycleDate);
       })
       : studyRecords;
 
@@ -1506,8 +1454,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           // para a mesma matéria/tópico.
           reviewToComplete = reviewRecords.find(r => r.id === linkedReviewId && !r.completedDate);
         } else {
-          const now = new Date();
-          const todayStr = now.toISOString().split('T')[0];
+          const todayStr = formatLocalDate();
 
           // Encontra revisões pendentes para a mesma matéria e tópico que estão para hoje ou atrasadas
           const pendingReviews = reviewRecords.filter(r =>

@@ -6,6 +6,7 @@ import type { StudyRecord } from '../context/DataContext';
 import StopwatchModal from './StopwatchModal';
 import StudyRegisterModal from './StudyRegisterModal';
 import { FaStopwatch } from 'react-icons/fa';
+import { formatLocalDate } from '../lib/dateUtils';
 
 interface FloatingStopwatchButtonProps {
   isVisible?: boolean;
@@ -29,7 +30,7 @@ const FloatingStopwatchButton: React.FC<FloatingStopwatchButtonProps> = ({ isVis
 
   const handleStopwatchSave = (time: number, subject?: string, topic?: string) => {
     const newRecord: Partial<StudyRecord> = {
-      date: new Date().toISOString().split('T')[0],
+      date: formatLocalDate(),
       studyTime: time,
       subject: subject || '',
       topic: topic || '',

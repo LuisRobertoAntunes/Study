@@ -2,6 +2,7 @@ import React from 'react';
 import { useData } from '../context/DataContext';
 import { FaBookOpen, FaQuestionCircle, FaCalendarAlt } from 'react-icons/fa';
 import Link from 'next/link';
+import { formatDateOnlyBR } from '../lib/dateUtils';
 
 const LastActivitiesSection = () => {
   const { studyRecords, formatMinutesToHoursMinutes } = useData();
@@ -15,7 +16,7 @@ const LastActivitiesSection = () => {
 
   const latestActivities = [...studyRecords]
     .sort((a, b) => {
-      const dateDifference = new Date(b.date).getTime() - new Date(a.date).getTime();
+      const dateDifference = b.date.localeCompare(a.date);
       if (dateDifference !== 0) return dateDifference;
 
       // Registros do mesmo dia precisam respeitar a ordem real de criação.
@@ -45,7 +46,7 @@ const LastActivitiesSection = () => {
               <div className="ml-7 space-y-1">
                 <p className="text-sm text-gray-700 dark:text-gray-300 flex items-center">
                   <FaCalendarAlt className="text-gray-400 dark:text-gray-500 mr-2" />
-                  <span className="font-medium">Data:</span> {new Date(activity.date).toLocaleDateString('pt-BR')}
+                  <span className="font-medium">Data:</span> {formatDateOnlyBR(activity.date)}
                 </p>
                 <p className="text-sm text-gray-700 dark:text-gray-300 flex items-center">
                   <FaBookOpen className="text-gray-400 dark:text-gray-500 mr-2" />

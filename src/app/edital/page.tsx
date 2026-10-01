@@ -9,6 +9,7 @@ import { useData, StudyRecord, EditalSubject as Subject, EditalTopic as Topic } 
 import { useNotification } from '../../context/NotificationContext';
 import StudyRegisterModal from '../../components/StudyRegisterModal';
 import TopicRow from '../../components/TopicRow';
+import { formatLocalDate } from '../../lib/dateUtils';
 
 const SUBJECT_COLORS = ['bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500', 'bg-pink-500'];
 
@@ -70,7 +71,7 @@ const EditalPage = () => {
     } else {
       const newRecord: Omit<StudyRecord, 'id'> = {
         subjectId: stats?.editalData.find(subject => subject.subject === subjectText)?.id || '',
-        date: new Date().toISOString().split('T')[0],
+        date: formatLocalDate(),
         subject: subjectText,
         topic: topicText,
         studyTime: 0,

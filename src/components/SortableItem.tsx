@@ -5,6 +5,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useData } from '../context/DataContext';
 import { FaPlay, FaPlus } from 'react-icons/fa';
+import { formatLocalDate } from '../lib/dateUtils';
 
 interface SortableItemProps {
   session: any;
@@ -71,7 +72,7 @@ const SortableItem: React.FC<SortableItemProps> = ({ session, index }) => {
               onClick={() => {
                 const newRecord = {
                   id: Date.now().toString(),
-                  date: new Date().toISOString().split('T')[0],
+                  date: formatLocalDate(),
                   subject: session.subject || '',
                   studyTime: session.duration * 60 * 1000,
                   topic: '',

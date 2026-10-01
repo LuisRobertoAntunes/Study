@@ -7,6 +7,7 @@ import StudyRegisterModal from '../../components/StudyRegisterModal';
 import FilterModal from '../../components/FilterModal';
 import PlanSelector from '../../components/PlanSelector';
 import ConfirmationModal from '../../components/ConfirmationModal'; // Importando o novo modal
+import { formatCalendarDateFromParts, formatDateOnlyBR, parseLocalDate } from '../../lib/dateUtils';
 
 interface StudySession {
   id: string;
@@ -118,20 +119,14 @@ const HistoricoPage = () => {
   // Aplica os filtros aos registros de estudo - CORRIGIDO para trabalhar com arrays
   const filteredRecords = useMemo(() => {
     return allStudyRecords.filter(record => {
-      const recordDate = new Date(record.date);
-
       // Filtro de data de início
       if (filters.startDate) {
-        const startDate = new Date(filters.startDate);
-        startDate.setHours(0, 0, 0, 0);
-        if (recordDate < startDate) return false;
+        if (record.date < formatCalendarDateFromParts(filters.startDate)) return false;
       }
 
       // Filtro de data de fim
       if (filters.endDate) {
-        const endDate = new Date(filters.endDate);
-        endDate.setHours(23, 59, 59, 999);
-        if (recordDate > endDate) return false;
+        if (record.date > formatCalendarDateFromParts(filters.endDate)) return false;
       }
 
       // Filtro de disciplinas (array)
@@ -191,7 +186,7 @@ const HistoricoPage = () => {
   const groupedRecords = useMemo(() => {
     const recordPosition = new Map(filteredRecords.map((record, index) => [record.id, index]));
     const grouped = filteredRecords.reduce((acc, record) => {
-      const date = new Date(record.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+      const date = formatDateOnlyBR(record.date);
       if (!acc[date]) {
         acc[date] = [];
       }
@@ -212,8 +207,8 @@ const HistoricoPage = () => {
 
   const sortedDates = useMemo(() => 
     Object.keys(groupedRecords).sort((a, b) => 
-      new Date(b.split('/').reverse().join('-')).getTime() - 
-      new Date(a.split('/').reverse().join('-')).getTime()
+      parseLocalDate(b.split('/').reverse().join('-')).getTime() -
+      parseLocalDate(a.split('/').reverse().join('-')).getTime()
     ), [groupedRecords]);
 
   // Handlers para abrir modais

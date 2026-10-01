@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { FaPencilAlt, FaTrash, FaCheckCircle, FaTimesCircle, FaMinusCircle, FaChevronDown, FaChevronUp, FaStar } from 'react-icons/fa';
 import { SimuladoRecord, SimuladoSubject } from '../app/actions';
+import { formatDateOnlyBR } from '../lib/dateUtils';
 
 interface SimuladoCardProps {
   simulado: SimuladoRecord;
@@ -23,8 +24,7 @@ const formatTime = (timeStr: string): string => {
 };
 
 const formatDateDisplay = (dateString: string): string => {
-  const date = new Date(dateString + 'T00:00:00'); // Adiciona T00:00:00 para garantir interpretação UTC
-  return date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+  return formatDateOnlyBR(dateString, { day: 'numeric', month: 'long', year: 'numeric' });
 };
 
 const getPerformanceColor = (percentage: number): string => {
